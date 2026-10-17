@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { profile } from '../content/portfolio';
 import { usePortfolio } from '../state/store';
+import { DayDial } from './DayDial';
 import { NAV_MENU_ID, NavMenu } from './NavMenu';
 import { TOWER_NAMES } from './PanelContent';
 import { TouchControls, useCoarsePointer } from './TouchControls';
@@ -22,8 +23,10 @@ function ControlsList({ touch }: { touch: boolean }) {
         <dt>Joystick</dt>
         <dd>Drive and steer</dd>
         <dt>Interact</dt>
-        <dd>Open a tower when you’re in its glowing zone</dd>
-        <dt>Tap a tower</dt>
+        <dd>Open a stop when you’re in its glowing zone</dd>
+        <dt>Recover</dt>
+        <dd>Put the car back on its wheels</dd>
+        <dt>Tap a building</dt>
         <dd>Fast travel there</dd>
       </dl>
     );
@@ -47,12 +50,16 @@ function ControlsList({ touch }: { touch: boolean }) {
       <dt>
         <kbd>E</kbd>
       </dt>
-      <dd>Open the tower whose glowing zone you’re in</dd>
+      <dd>Open the stop whose glowing zone you’re in</dd>
+      <dt>
+        <kbd>R</kbd>
+      </dt>
+      <dd>Recover: put the car back on its wheels</dd>
       <dt>
         <kbd>M</kbd>
       </dt>
       <dd>Fast travel menu</dd>
-      <dt>Click a tower</dt>
+      <dt>Click a building</dt>
       <dd>Fast travel there</dd>
     </dl>
   );
@@ -84,10 +91,10 @@ function WelcomeCard({ touch }: { touch: boolean }) {
   }
   return (
     <section className="welcome" aria-labelledby="welcome-title">
-      <p className="eyebrow">Welcome to Career City</p>
+      <p className="eyebrow">Welcome to the Career District</p>
       <h2 id="welcome-title">{profile.name}</h2>
       <p className="welcome__headline">{profile.headline}</p>
-      <p>Drive the boulevard: each tower holds part of my career. Pull into a tower’s glowing zone to open it.</p>
+      <p>Drive around the district: the Career Tower and four kiosks hold my story. Pull into a glowing zone to open one, and knock over whatever you like on the way.</p>
       <ControlsList touch={touch} />
       <div className="panel-actions">
         <button type="button" className="primary" onClick={dismiss}>
@@ -101,7 +108,16 @@ function WelcomeCard({ touch }: { touch: boolean }) {
   );
 }
 
-/** "Press E" prompt while the car sits in a tower's entrance zone. */
+/** Shown during the opening fly-over. */
+function RevealHint() {
+  return (
+    <p className="reveal-hint" role="status">
+      Press any key or tap to skip
+    </p>
+  );
+}
+
+/** "Press E" prompt while the car sits in a stop's entrance zone. */
 function InteractPrompt({ touch }: { touch: boolean }) {
   const nearTower = usePortfolio((s) => s.nearTower);
   const panelOpen = usePortfolio((s) => s.panelOpen);
@@ -128,6 +144,7 @@ export function Hud() {
   const menuOpen = usePortfolio((s) => s.menuOpen);
   const setMenuOpen = usePortfolio((s) => s.setMenuOpen);
   const switchView = usePortfolio((s) => s.switchView);
+  const revealing = usePortfolio((s) => s.revealing);
   const touch = useCoarsePointer();
   const menuButton = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(menuOpen);
@@ -146,6 +163,7 @@ export function Hud() {
           <p>{profile.headline}</p>
         </div>
         <div className="hud__actions">
+          <DayDial />
           <button type="button" ref={menuButton} aria-expanded={menuOpen} aria-controls={NAV_MENU_ID} onClick={() => setMenuOpen(!menuOpen)}>
             Menu
           </button>
@@ -158,9 +176,9 @@ export function Hud() {
         </div>
       </header>
       <NavMenu />
-      <WelcomeCard touch={touch} />
+      {revealing ? <RevealHint /> : <WelcomeCard touch={touch} />}
       <InteractPrompt touch={touch} />
-      {touch && <TouchControls />}
+      {touch && !revealing && <TouchControls />}
     </div>
   );
 }

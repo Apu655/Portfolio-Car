@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
 import { initPortfolio } from './initPortfolio';
@@ -223,5 +223,31 @@ describe('browser history', () => {
       await new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
     });
     expect(await screen.findByRole('dialog', { name: 'Contact' })).toBeInTheDocument();
+  });
+});
+
+describe('heads-up display', () => {
+  it('has a day dial: scrubbing sets the time, and pause holds it', async () => {
+    const { dayClock } = await import('./world/lighting/clock');
+    const user = start();
+    const slider = screen.getByRole('slider', { name: 'Time of day' });
+    fireEvent.change(slider, { target: { value: '23' } });
+    expect(Math.round(dayClock.hours(performance.now()) * 4) / 4).toBe(23);
+    expect(slider).toHaveAttribute('aria-valuetext', expect.stringMatching(/^23:0\d$/));
+
+    await user.click(screen.getByRole('button', { name: 'Pause the day cycle' }));
+    expect(dayClock.paused).toBe(true);
+    expect(screen.getByRole('button', { name: 'Resume the day cycle' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Resume the day cycle' }));
+    expect(dayClock.paused).toBe(false);
+  });
+
+  it('hides the welcome card during the opening reveal and shows how to skip it', () => {
+    start();
+    act(() => usePortfolio.getState().setRevealing(true));
+    expect(screen.queryByRole('button', { name: 'Start driving' })).not.toBeInTheDocument();
+    expect(screen.getByText('Press any key or tap to skip')).toBeInTheDocument();
+    act(() => usePortfolio.getState().setRevealing(false));
+    expect(screen.getByRole('button', { name: 'Start driving' })).toBeInTheDocument();
   });
 });

@@ -8,6 +8,8 @@ import { isLabelActive, labelElements, WORLD_LABELS } from '../world/labels';
 export function WorldLabels() {
   const hovered = usePortfolio((s) => s.hovered);
   const open = usePortfolio((s) => (s.panelOpen ? s.selection : null));
+  const revealing = usePortfolio((s) => s.revealing);
+  if (revealing) return null;
   return (
     <div className="world-labels" aria-hidden="true">
       {WORLD_LABELS.map((label) => {

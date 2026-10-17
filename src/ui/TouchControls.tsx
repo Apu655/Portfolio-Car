@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { touchInput } from '../world/drive/input';
+import { touchActions, touchInput } from '../world/drive/input';
 
 /** True on phones and tablets (a coarse pointer and no hover). */
 export function useCoarsePointer(): boolean {
@@ -17,7 +17,7 @@ export function useCoarsePointer(): boolean {
 
 const RADIUS = 52;
 
-/** On-screen joystick (drive and steer) plus a handbrake button, feeding the same input the keyboard does. */
+/** On-screen joystick (drive and steer) plus handbrake and recover buttons, feeding the same input the keyboard does. */
 export function TouchControls() {
   const base = useRef<HTMLDivElement>(null);
   const pointer = useRef<number | null>(null);
@@ -81,6 +81,9 @@ export function TouchControls() {
         onPointerLeave={() => (touchInput.handbrake = false)}
       >
         Brake
+      </button>
+      <button type="button" className="recover-button" onClick={() => (touchActions.recover = true)}>
+        Recover
       </button>
     </div>
   );
