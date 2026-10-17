@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "resume:placeholder": "node scripts/make-placeholder-resume.mjs"
+    "resume:placeholder": "node scripts/make-placeholder-resume.mjs",
+    "assets:build": "node scripts/build-assets.mjs",
+    "budget": "node scripts/check-budget.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

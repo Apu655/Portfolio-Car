@@ -83,6 +83,16 @@ export function zoneAt(x: number, z: number): Zone | null {
 
 export const SPAWN = { position: [-40, 57.5] as Vec2, heading: HEADING.east };
 
+/** Paved plazas (center x/z, size x/z): the tower forecourt, the prop plaza, and the kiosk promenade. */
+export const PLAZAS = [
+  { name: 'forecourt', center: [TOWER.center[0] - TOWER.halfSize - 8, TOWER.center[1]] as Vec2, size: [16, 26] as Vec2 },
+  { name: 'props', center: [30, 35] as Vec2, size: [34, 20] as Vec2 },
+  { name: 'kiosks', center: [0, KIOSK_Z] as Vec2, size: [120, 12] as Vec2 },
+];
+
+const inPlaza = (x: number, z: number, margin: number) =>
+  PLAZAS.some((p) => Math.abs(x - p.center[0]) < p.size[0] / 2 + margin && Math.abs(z - p.center[1]) < p.size[1] / 2 + margin);
+
 /** Shallow pond in the park (west half of the loop). */
 export const POND = { center: [-35, -6] as Vec2, radiusX: 14, radiusZ: 10, depth: 0.7, shore: 3.5 };
 
@@ -94,6 +104,9 @@ export const BILLBOARD = {
   width: 22,
   height: 13,
 };
+
+/** Brass city-gate arch spanning the north road between the kiosks; pillars stand on the two sidewalks. */
+export const GATE = { x: -30, pillarsZ: [-48.5, -61.5] as Vec2, height: 8.5, pillarHalf: 0.8 };
 
 /** Point on the pond surface ellipse test: >1 outside, <1 inside. */
 export function pondNorm(x: number, z: number): number {
@@ -113,6 +126,7 @@ export function pondDepth(x: number, z: number): number {
 
 export type PropKind = 'cone' | 'crate' | 'sign' | 'bench' | 'brick' | 'barrel';
 
+/** A physical prop at rest. `position` is the center of its bottom face. */
 export interface PropPlacement {
   id: string;
   kind: PropKind;
@@ -131,7 +145,7 @@ function brickWall(origin: Vec2, length: number, courses: number): PropPlacement
       bricks.push({
         id: `brick-${row}-${i}`,
         kind: 'brick',
-        position: [origin[0] + offset + i * BRICK.length + BRICK.length / 2, BRICK.height * (row + 0.5) + 0.01, origin[1]],
+        position: [origin[0] + offset + i * BRICK.length + BRICK.length / 2, BRICK.height * row + 0.002, origin[1]],
         rotationY: 0,
       });
     }
@@ -153,7 +167,7 @@ export const PROPS: PropPlacement[] = (() => {
   ];
   crates.forEach((p, i) => list.push({ id: `crate-${i}`, kind: 'crate', position: p, rotationY: 0 }));
   // Barrels by the tower forecourt.
-  [[16, -30], [17.2, -30.6], [16.6, -31.6]].forEach(([x, z], i) => list.push({ id: `barrel-${i}`, kind: 'barrel', position: [x, 0, z], rotationY: 0 }));
+  [[16, -31], [17.4, -31.5], [16.6, -32.8]].forEach(([x, z], i) => list.push({ id: `barrel-${i}`, kind: 'barrel', position: [x, 0, z], rotationY: 0 }));
   // Street signs at the T-junctions and park benches.
   list.push({ id: 'sign-0', kind: 'sign', position: [7, 0, 47.5], rotationY: 0 });
   list.push({ id: 'sign-1', kind: 'sign', position: [-7, 0, -47.5], rotationY: Math.PI });
@@ -194,7 +208,7 @@ export const TREES: StaticPlacement[] = (() => {
     Math.hypot(x - BILLBOARD.position[0], z - BILLBOARD.position[2]) < 16 ||
     PROPS.some((p) => Math.hypot(x - p.position[0], z - p.position[2]) < 3) ||
     ZONES.some((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) < zone.radius + 3) ||
-    (z < -62 && z > -78 && Math.abs(x) < 60);
+    inPlaza(x, z, 2.5);
   for (let i = 0; i < 260 && result.length < 90; i++) {
     const x = (random() * 2 - 1) * (WORLD_HALF - 18);
     const z = (random() * 2 - 1) * (WORLD_HALF - 18);
