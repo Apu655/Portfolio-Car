@@ -73,5 +73,5 @@ def build(layout):
         bench.append(kit.box(f"backleg{sx}", 0.05, 0.5, 0.05, sx, -0.05, 0.28, m["iron"]))
     kit.join(bench, "prop_bench")
 
-    # Brick: 0.9 x 0.38 x 0.45, softly bevelled.
-    kit.box("prop_brick", 0.88, 0.36, 0.43, 0, -0.18, 0, m["brick"], bevel=0.04)
+    # Brick: 0.6 x 0.3 x 0.4, softly bevelled.
+    kit.box("prop_brick", 0.58, 0.29, 0.39, 0, -0.145, 0, m["brick"], bevel=0.035)

@@ -134,7 +134,7 @@ export interface PropPlacement {
   rotationY: number;
 }
 
-const BRICK = { length: 0.9, height: 0.38, depth: 0.45 };
+const BRICK = { length: 0.6, height: 0.3, depth: 0.4 };
 
 function brickWall(origin: Vec2, length: number, courses: number): PropPlacement[] {
   const bricks: PropPlacement[] = [];
@@ -174,7 +174,7 @@ export const PROPS: PropPlacement[] = (() => {
   [[-50, 8, 0.4], [-20, 8, -0.4], [-35, -22, Math.PI]].forEach(([x, z, r], i) =>
     list.push({ id: `bench-${i}`, kind: 'bench', position: [x, 0, z], rotationY: r }),
   );
-  list.push(...brickWall([30, 30], 12, 5));
+  list.push(...brickWall([30, 30], 12, 6));
   return list;
 })();
 

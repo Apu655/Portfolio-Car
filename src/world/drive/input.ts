@@ -38,6 +38,9 @@ export function wantsRecover(pressed: ReadonlySet<string>): boolean {
 /** Written by the on-screen joystick and buttons on touch devices; read by the car each frame. */
 export const touchInput: DriveInput = { throttle: 0, steer: 0, handbrake: false };
 
+/** One-shot touch actions (the Recover button). */
+export const touchActions = { recover: false };
+
 /** Keyboard wins when any key is held; otherwise the touch controls drive. */
 export function combineInputs(keyboard: DriveInput, touch: DriveInput): DriveInput {
   const keyboardActive = keyboard.throttle !== 0 || keyboard.steer !== 0 || keyboard.handbrake;
