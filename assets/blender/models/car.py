@@ -85,7 +85,7 @@ def build(layout):
     m = {
         "paint": kit.mat("car_paint", "#1f6f72", roughness=0.28, metallic=0.45, clearcoat=1.0),
         "cream": kit.mat("car_cream", "#f1e6cc", roughness=0.35, clearcoat=0.8),
-        "glass": kit.mat("car_glass", "#14202b", roughness=0.05, metallic=0.85),
+        "glass": kit.mat("car_glass", "#14202b", roughness=0.2, metallic=0.6),
         "chrome": kit.mat("chrome", "#e7e8ea", roughness=0.12, metallic=1.0),
         "brass": kit.mat("brass", "#c99a45", roughness=0.25, metallic=1.0),
         "rubber": kit.mat("rubber", "#18191c", roughness=0.9),

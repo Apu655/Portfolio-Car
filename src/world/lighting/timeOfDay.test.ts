@@ -10,7 +10,8 @@ describe('lighting follows the local clock', () => {
   it('is full daylight at 13:00 with the sun high', () => {
     const l = lightingAt(13);
     expect(l.night).toBe(0);
-    expect(l.sunIntensity).toBeGreaterThan(3);
+    expect(l.sunIntensity).toBeGreaterThan(lightingAt(7.5).sunIntensity);
+    expect(l.sunIntensity).toBeGreaterThan(lightingAt(18.5).sunIntensity);
     expect(l.sunDirection[1]).toBeGreaterThan(0.8);
   });
 
@@ -37,5 +38,17 @@ describe('lighting follows the local clock', () => {
 
   it('reads hours from the device clock', () => {
     expect(localHours(new Date(2026, 9, 18, 18, 45, 0))).toBeCloseTo(18.75, 5);
+  });
+});
+
+describe('blue hour', () => {
+  it('sits between sunset and night: sky deep blue, lights coming up', () => {
+    const sunset = lightingAt(18.5);
+    const blue = lightingAt(19.1);
+    const night = lightingAt(21);
+    expect(blue.night).toBeGreaterThan(sunset.night);
+    expect(blue.night).toBeLessThan(night.night);
+    const [r, , b] = blue.skyTop;
+    expect(b).toBeGreaterThan(r * 2);
   });
 });
