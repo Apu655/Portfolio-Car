@@ -1,6 +1,6 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode, type RefObject } from 'react';
-import { papers, profile, projects, roles } from '../content/portfolio';
-import { RoleDetails, ContactLinks } from '../ui/PanelContent';
+import { profile, role } from '../content/portfolio';
+import { ContactLinks, EducationList, ProjectList, ResearchList, RoleDetails, TOWER_NAMES } from '../ui/PanelContent';
 import { anchorId, formatHash, sameSelection, SECTIONS, SECTION_LABELS, type Section, type Selection } from '../state/route';
 import { usePortfolio } from '../state/store';
 
@@ -46,7 +46,7 @@ function useScrollSync(programmaticUntil: RefObject<number>): void {
           else inView.delete(element);
         }
         if (Date.now() < programmaticUntil.current) return;
-        // Prefer a specific item (a role card) over the section that contains it; then the top-most one.
+        // Prefer a specific item over the section that contains it; then the top-most one.
         const candidates = [...inView].sort(
           (a, b) =>
             Number(Boolean(b.dataset.item)) - Number(Boolean(a.dataset.item)) ||
@@ -78,7 +78,7 @@ function SectionLink({ selection, children }: { selection: Selection; children: 
   );
 }
 
-function ViewIn3D({ selection, label }: { selection: Selection; label: string }) {
+function DriveThere({ section }: { section: Exclude<Section, 'about'> }) {
   const webglAvailable = usePortfolio((s) => s.webglAvailable);
   const navigate = usePortfolio((s) => s.navigate);
   const switchView = usePortfolio((s) => s.switchView);
@@ -87,14 +87,32 @@ function ViewIn3D({ selection, label }: { selection: Selection; label: string })
     <button
       type="button"
       className="link-button"
-      aria-label={label}
       onClick={() => {
-        navigate(selection);
+        navigate({ section });
         switchView('3d');
       }}
     >
-      View in 3D
+      Visit the {TOWER_NAMES[section]} in 3D
     </button>
+  );
+}
+
+function SectionBlock({ section, children }: { section: Exclude<Section, 'about'>; children: ReactNode }) {
+  const current = usePortfolio((s) => sameSelection(s.selection, { section }));
+  return (
+    <section
+      id={section}
+      data-section={section}
+      tabIndex={-1}
+      aria-labelledby={`${section}-heading`}
+      aria-current={current ? 'true' : undefined}
+    >
+      <div className="section-head">
+        <h2 id={`${section}-heading`}>{SECTION_LABELS[section]}</h2>
+        <DriveThere section={section} />
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -105,7 +123,7 @@ export function BasicSite() {
   const switchView = usePortfolio((s) => s.switchView);
   const programmaticUntil = useScrollToSelection();
   useScrollSync(programmaticUntil);
-  const isCurrent = (target: Selection) => (sameSelection(selection, target) ? 'true' : undefined);
+  const activeItem = (section: Section) => (selection?.section === section ? selection.itemId : undefined);
 
   return (
     <div className="basic">
@@ -133,99 +151,45 @@ export function BasicSite() {
             disabled={!webglAvailable}
             title={webglAvailable ? undefined : 'Your browser does not support WebGL'}
           >
-            Explore in 3D
+            Drive the city
           </button>
         </div>
       </header>
 
       <main id="main" className="basic__main">
-        <section id="about" data-section="about" tabIndex={-1} aria-current={isCurrent({ section: 'about' })}>
+        <section
+          id="about"
+          data-section="about"
+          tabIndex={-1}
+          aria-current={sameSelection(selection, { section: 'about' }) ? 'true' : undefined}
+        >
           <h1>{profile.name}</h1>
           <p className="lead">{profile.headline}</p>
           <p>{profile.pitch}</p>
         </section>
 
-        <section id="experience" data-section="experience" tabIndex={-1} aria-labelledby="experience-heading">
-          <h2 id="experience-heading">Experience</h2>
-          <ol className="timeline" reversed>
-            {[...roles].reverse().map((role) => {
-              const target: Selection = { section: 'experience', itemId: role.id };
-              return (
-                <li key={role.id}>
-                  <article
-                    id={anchorId(target)}
-                    data-section="experience"
-                    data-item={role.id}
-                    tabIndex={-1}
-                    className="card"
-                    aria-current={isCurrent(target)}
-                    aria-labelledby={`${anchorId(target)}-title`}
-                  >
-                    <h3 id={`${anchorId(target)}-title`}>{role.title}</h3>
-                    <RoleDetails role={role} />
-                    <ViewIn3D selection={target} label={`View ${role.title} in 3D`} />
-                  </article>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
+        <SectionBlock section="experience">
+          <article className="card" aria-labelledby="experience-role-title">
+            <h3 id="experience-role-title">{role.title}</h3>
+            <RoleDetails role={role} />
+          </article>
+        </SectionBlock>
 
-        <section id="research" data-section="research" tabIndex={-1} aria-labelledby="research-heading">
-          <h2 id="research-heading">Research</h2>
-          <ul className="card-list">
-            {papers.map((paper) => {
-              const target: Selection = { section: 'research', itemId: paper.id };
-              return (
-                <li key={paper.id} id={anchorId(target)} className="card" aria-current={isCurrent(target)}>
-                  <h3>{paper.title}</h3>
-                  <p className="meta">
-                    {paper.authors} — {paper.venue}, {paper.year}
-                  </p>
-                  <p>{paper.abstract}</p>
-                  <a href={paper.link} target="_blank" rel="noreferrer">
-                    Read paper
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <SectionBlock section="research">
+          <ResearchList activeId={activeItem('research')} idPrefix="research" />
+        </SectionBlock>
 
-        <section id="projects" data-section="projects" tabIndex={-1} aria-labelledby="projects-heading">
-          <h2 id="projects-heading">Projects</h2>
-          <ul className="card-list">
-            {projects.map((project) => {
-              const target: Selection = { section: 'projects', itemId: project.id };
-              return (
-                <li key={project.id} id={anchorId(target)} className="card" aria-current={isCurrent(target)}>
-                  <h3>
-                    {project.name} <span className="meta">({project.year})</span>
-                  </h3>
-                  <p>{project.description}</p>
-                  <ul className="tags" aria-label="Tags">
-                    {project.tags.map((t) => (
-                      <li key={t}>{t}</li>
-                    ))}
-                  </ul>
-                  <a href={project.link} target="_blank" rel="noreferrer">
-                    View project
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <SectionBlock section="projects">
+          <ProjectList activeId={activeItem('projects')} idPrefix="projects" />
+        </SectionBlock>
 
-        <section id="contact" data-section="contact" tabIndex={-1} aria-labelledby="contact-heading">
-          <h2 id="contact-heading">Contact</h2>
+        <SectionBlock section="education">
+          <EducationList activeId={activeItem('education')} idPrefix="education" />
+        </SectionBlock>
+
+        <SectionBlock section="contact">
           <ContactLinks />
-          <p>
-            <a href={profile.resumeUrl} download>
-              Download my résumé (PDF)
-            </a>
-          </p>
-        </section>
+        </SectionBlock>
       </main>
       <footer className="basic__footer">
         <p>

@@ -21,7 +21,7 @@ class WorldErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
     usePortfolio.setState({
       view: 'basic',
       webglAvailable: false,
-      notice: 'The 3D world couldn’t start on this device, so you’re seeing the quick view.',
+      notice: 'The 3D city couldn’t start on this device, so you’re seeing the quick view.',
     });
   }
 
@@ -30,7 +30,10 @@ class WorldErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
   }
 }
 
-/** Esc closes the menu first, then the info panel; M toggles the menu (3D view only). */
+/**
+ * 3D view shortcuts: Esc closes the menu first, then the info panel; M toggles the menu; E opens the tower
+ * whose entrance zone the car is in.
+ */
 function useGlobalShortcuts(): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -43,8 +46,11 @@ function useGlobalShortcuts(): void {
       }
       const target = event.target as Element | null;
       const typing = target?.closest?.('input, textarea, select, [contenteditable="true"]');
-      if ((event.key === 'm' || event.key === 'M') && !typing && !event.metaKey && !event.ctrlKey) {
-        state.setMenuOpen(!state.menuOpen);
+      if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key === 'm') state.setMenuOpen(!state.menuOpen);
+      if (key === 'e' && state.nearTower && !state.panelOpen && !state.menuOpen) {
+        state.navigate({ section: state.nearTower }, { travel: false });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -63,7 +69,7 @@ export function App() {
       {view === '3d' ? (
         <>
           <button type="button" className="skip-link" onClick={() => switchView('basic')}>
-            Skip to the quick text view
+            Skip to the conventional portfolio
           </button>
           <WorldErrorBoundary>
             <Suspense fallback={<WorldLoading />}>

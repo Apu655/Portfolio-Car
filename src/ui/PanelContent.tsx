@@ -1,45 +1,61 @@
-import { papers, profile, projects, roles, type Role } from '../content/portfolio';
+import { education, papers, profile, projects, RESEARCH_THEMES, role, type Role } from '../content/portfolio';
 import { formatRoleDates, formatRoleDuration } from '../content/format';
 import type { Selection } from '../state/route';
 import { usePortfolio } from '../state/store';
 
-/** Readable content for one portfolio place. Shared by the 3D info panel. */
+/** Readable content for each portfolio place. Shared by the 3D info panel and the quick view. */
+
+export const TOWER_NAMES: Record<Exclude<Selection['section'], 'about'>, string> = {
+  experience: 'MetLife Career Tower',
+  research: 'AI Research Tower',
+  projects: 'Projects Tower',
+  education: 'Education Tower',
+  contact: 'Contact Tower',
+};
 
 export function panelTitle(selection: Selection): string {
   switch (selection.section) {
     case 'about':
       return profile.name;
     case 'experience':
-      return roles.find((r) => r.id === selection.itemId)?.title ?? 'Experience';
+      return role.title;
     case 'research':
-      return 'Research';
+      return 'Research & publications';
     case 'projects':
       return 'Projects';
+    case 'education':
+      return 'Education';
     case 'contact':
       return 'Contact';
   }
 }
 
-export function RoleDetails({ role }: { role: Role }) {
+export function RoleDetails({ role: r }: { role: Role }) {
   return (
     <>
-      <p className="role-org">{role.organization}</p>
+      <p className="role-org">{r.organization}</p>
       <p className="role-dates">
-        <time dateTime={role.start}>{formatRoleDates(role)}</time>
+        <time dateTime={r.start}>{formatRoleDates(r)}</time>
         <span aria-hidden="true"> · </span>
-        <span>{formatRoleDuration(role)}</span>
+        <span>{formatRoleDuration(r)}</span>
         <span aria-hidden="true"> · </span>
-        <span>{role.location}</span>
+        <span>{r.location}</span>
       </p>
-      <p>{role.summary}</p>
+      <p>{r.summary}</p>
+      <h3>Responsibilities</h3>
+      <ul className="bullets">
+        {r.responsibilities.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
       <h3>Achievements</h3>
-      <ul className="achievements">
-        {role.achievements.map((a) => (
-          <li key={a}>{a}</li>
+      <ul className="bullets">
+        {r.achievements.map((item) => (
+          <li key={item}>{item}</li>
         ))}
       </ul>
       <ul className="tags" aria-label="Skills">
-        {role.skills.map((s) => (
+        {r.skills.map((s) => (
           <li key={s}>{s}</li>
         ))}
       </ul>
@@ -47,110 +63,105 @@ export function RoleDetails({ role }: { role: Role }) {
   );
 }
 
-function RolePanel({ role }: { role: Role }) {
-  const navigate = usePortfolio((s) => s.navigate);
-  const index = roles.indexOf(role);
-  const below = roles[index - 1];
-  const above = roles[index + 1];
+export function ResearchList({ activeId, idPrefix }: { activeId?: string; idPrefix?: string }) {
   return (
     <>
-      <p className="eyebrow">
-        Floor {index + 1} of {roles.length}
-      </p>
-      <RoleDetails role={role} />
-      <div className="panel-actions">
-        <button type="button" disabled={!below} onClick={() => below && navigate({ section: 'experience', itemId: below.id })}>
-          ↓ Earlier role
-        </button>
-        <button type="button" onClick={() => navigate({ section: 'experience' })}>
-          All roles
-        </button>
-        <button type="button" disabled={!above} onClick={() => above && navigate({ section: 'experience', itemId: above.id })}>
-          Later role ↑
-        </button>
-      </div>
+      {RESEARCH_THEMES.map((theme) => {
+        const inTheme = papers.filter((p) => p.theme === theme);
+        if (inTheme.length === 0) return null;
+        return (
+          <section key={theme} className="theme-group" aria-label={theme}>
+            <h3 className="eyebrow">{theme}</h3>
+            <ul className="item-list">
+              {inTheme.map((paper) => (
+                <li
+                  key={paper.id}
+                  id={idPrefix ? `${idPrefix}-${paper.id}` : undefined}
+                  data-section={idPrefix ? 'research' : undefined}
+                  data-item={idPrefix ? paper.id : undefined}
+                  className={`card${paper.id === activeId ? ' is-active' : ''}`}
+                  aria-current={paper.id === activeId ? 'true' : undefined}
+                >
+                  <h4>{paper.title}</h4>
+                  <p className="meta">
+                    {paper.authors} — {paper.venue}, {paper.year}
+                  </p>
+                  <p>{paper.abstract}</p>
+                  <a href={paper.link} target="_blank" rel="noreferrer">
+                    Read paper
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
     </>
   );
 }
 
-function ExperienceOverview() {
-  const navigate = usePortfolio((s) => s.navigate);
-  return (
-    <>
-      <p>Each floor of the Career Tower is one role, oldest at the bottom. Pick a floor:</p>
-      <ol className="item-list" reversed>
-        {[...roles].reverse().map((role) => (
-          <li key={role.id}>
-            <button type="button" className="item-button" onClick={() => navigate({ section: 'experience', itemId: role.id })}>
-              <strong>{role.title}</strong>
-              <span>
-                {role.organization} · {formatRoleDates(role)}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-    </>
-  );
-}
-
-function ResearchPanel({ activeId }: { activeId?: string }) {
-  return (
-    <ul className="item-list">
-      {papers.map((paper) => (
-        <li key={paper.id} className={paper.id === activeId ? 'is-active' : undefined}>
-          <h3>{paper.title}</h3>
-          <p className="meta">
-            {paper.authors} — {paper.venue}, {paper.year}
-          </p>
-          <p>{paper.abstract}</p>
-          <a href={paper.link} target="_blank" rel="noreferrer">
-            Read paper
-          </a>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ProjectsPanel({ activeId }: { activeId?: string }) {
+export function ProjectList({ activeId, idPrefix }: { activeId?: string; idPrefix?: string }) {
   return (
     <ul className="item-list">
       {projects.map((project) => (
-        <li key={project.id} className={project.id === activeId ? 'is-active' : undefined}>
-          <h3>
+        <li
+          key={project.id}
+          id={idPrefix ? `${idPrefix}-${project.id}` : undefined}
+          data-section={idPrefix ? 'projects' : undefined}
+          data-item={idPrefix ? project.id : undefined}
+          className={`card${project.id === activeId ? ' is-active' : ''}`}
+          aria-current={project.id === activeId ? 'true' : undefined}
+        >
+          <h4>
             {project.name} <span className="meta">({project.year})</span>
-          </h3>
+          </h4>
           <p>{project.description}</p>
-          <ul className="tags" aria-label="Tags">
-            {project.tags.map((t) => (
+          <ul className="tags" aria-label="Technologies">
+            {project.technologies.map((t) => (
               <li key={t}>{t}</li>
             ))}
           </ul>
-          <a href={project.link} target="_blank" rel="noreferrer">
-            View project
-          </a>
+          <p className="link-row">
+            {project.demo && (
+              <a href={project.demo} target="_blank" rel="noreferrer">
+                Live demo
+              </a>
+            )}
+            <a href={project.repo} target="_blank" rel="noreferrer">
+              GitHub repository
+            </a>
+          </p>
         </li>
       ))}
     </ul>
   );
 }
 
-function AboutPanel() {
-  const navigate = usePortfolio((s) => s.navigate);
+export function EducationList({ activeId, idPrefix }: { activeId?: string; idPrefix?: string }) {
   return (
-    <>
-      <p className="eyebrow">{profile.headline}</p>
-      <p>{profile.pitch}</p>
-      <div className="panel-actions">
-        <button type="button" onClick={() => navigate({ section: 'experience' })}>
-          Fly to my experience
-        </button>
-        <a className="button-link" href={profile.resumeUrl} download>
-          Download résumé (PDF)
-        </a>
-      </div>
-    </>
+    <ul className="item-list">
+      {education.map((entry) => (
+        <li
+          key={entry.id}
+          id={idPrefix ? `${idPrefix}-${entry.id}` : undefined}
+          data-section={idPrefix ? 'education' : undefined}
+          data-item={idPrefix ? entry.id : undefined}
+          className={`card${entry.id === activeId ? ' is-active' : ''}`}
+          aria-current={entry.id === activeId ? 'true' : undefined}
+        >
+          <h4>{entry.degree}</h4>
+          <p className="role-org">{entry.institution}</p>
+          <p className="meta">
+            {formatRoleDates(entry)} · {entry.location}
+          </p>
+          <ul className="bullets">
+            {entry.achievements.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -164,23 +175,54 @@ export function ContactLinks() {
           </a>
         </li>
       ))}
+      <li>
+        <a href={profile.resumeUrl} download>
+          Résumé (PDF)
+        </a>
+      </li>
     </ul>
   );
 }
 
+function AboutPanel() {
+  const navigate = usePortfolio((s) => s.navigate);
+  return (
+    <>
+      <p className="eyebrow">{profile.headline}</p>
+      <p>{profile.pitch}</p>
+      <div className="panel-actions">
+        <button type="button" onClick={() => navigate({ section: 'experience' })}>
+          Go to the Career Tower
+        </button>
+        <a className="button-link" href={profile.resumeUrl} download>
+          Download résumé (PDF)
+        </a>
+      </div>
+    </>
+  );
+}
+
 export function PanelContent({ selection }: { selection: Selection }) {
-  switch (selection.section) {
-    case 'about':
-      return <AboutPanel />;
-    case 'experience': {
-      const role = roles.find((r) => r.id === selection.itemId);
-      return role ? <RolePanel role={role} /> : <ExperienceOverview />;
-    }
-    case 'research':
-      return <ResearchPanel activeId={selection.itemId} />;
-    case 'projects':
-      return <ProjectsPanel activeId={selection.itemId} />;
-    case 'contact':
-      return <ContactLinks />;
-  }
+  const tower = selection.section === 'about' ? null : TOWER_NAMES[selection.section];
+  return (
+    <>
+      {tower && <p className="eyebrow">{tower}</p>}
+      {(() => {
+        switch (selection.section) {
+          case 'about':
+            return <AboutPanel />;
+          case 'experience':
+            return <RoleDetails role={role} />;
+          case 'research':
+            return <ResearchList activeId={selection.itemId} />;
+          case 'projects':
+            return <ProjectList activeId={selection.itemId} />;
+          case 'education':
+            return <EducationList activeId={selection.itemId} />;
+          case 'contact':
+            return <ContactLinks />;
+        }
+      })()}
+    </>
+  );
 }

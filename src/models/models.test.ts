@@ -1,77 +1,72 @@
 import * as THREE from 'three';
-import { roles } from '../content/portfolio';
-import { CITY, CityHeightField, createCity, layoutCity } from './city';
-import { createSpaceship, SHIP_FLAME } from './ship';
-import { createCareerTower } from './tower';
-import { ISLAND, terrainHeight } from './terrain';
-import { createBeacon, createMonolith, createObservatory, createShipyard, STATION_LIGHT } from './stations';
+import { distanceToLoop, LOOP, TOWERS } from '../world/city/cityLayout';
+import { createRetroCoupe } from './car';
+import { createBuildings, createStreetlights, createTrees, loopPath } from './cityMeshes';
+import { LANDMARK_BUILDERS } from './landmarks';
 
-describe('career tower', () => {
-  const tower = createCareerTower(roles.map((r) => r.id));
+function bounds(object: THREE.Object3D): THREE.Box3 {
+  object.updateMatrixWorld(true);
+  return new THREE.Box3().setFromObject(object);
+}
 
-  it('has one selectable floor per role, oldest at the bottom', () => {
-    expect(tower.floors.map((f) => f.userData.roleId)).toEqual(roles.map((r) => r.id));
-    const heights = tower.floors.map((f) => f.position.y);
-    expect([...heights].sort((a, b) => a - b)).toEqual(heights);
+describe('retro coupe', () => {
+  const car = createRetroCoupe();
+
+  it('has four wheels, two of which steer', () => {
+    expect(car.wheels).toHaveLength(4);
+    expect(car.wheels.filter((w) => w.steer)).toHaveLength(2);
   });
 
-  it('has four clock faces and rises above its floors', () => {
-    expect(tower.hourHands).toHaveLength(4);
-    expect(tower.minuteHands).toHaveLength(4);
-    expect(tower.layout.height).toBeGreaterThan(tower.layout.shaftTop + 20);
+  it('is car-sized and points down -Z with headlights at the front', () => {
+    const size = bounds(car.group).getSize(new THREE.Vector3());
+    expect(size.z).toBeGreaterThan(4);
+    expect(size.z).toBeLessThan(5.2);
+    expect(size.x).toBeLessThan(2.4);
+    expect(car.headlights).toHaveLength(2);
+    expect(car.headlights.every((h) => h.z < -2)).toBe(true);
+  });
+
+  it('turns its headlights up at night', () => {
+    const [day, night] = car.lens.userData.emissiveByNight as [number, number];
+    expect(night).toBeGreaterThan(day);
   });
 });
 
-describe('city', () => {
-  const buildings = layoutCity();
-
-  it('is deterministic, so the city looks the same on every visit', () => {
-    expect(layoutCity()).toEqual(buildings);
-    expect(buildings.length).toBeGreaterThan(40);
+describe('landmarks', () => {
+  it.each(TOWERS.map((t) => [t.name, t] as const))('%s matches its site footprint and height', (_name, site) => {
+    const landmark = LANDMARK_BUILDERS[site.section](site);
+    const box = bounds(landmark.group);
+    const size = box.getSize(new THREE.Vector3());
+    expect(size.y).toBeGreaterThan(site.height * 0.9);
+    expect(size.y).toBeLessThan(site.height * 1.12);
+    // Small overhangs (cornices, steps) may poke out slightly; the body stays within the collider.
+    expect(Math.max(size.x, size.z) / 2).toBeLessThan(site.halfSize * 1.25);
   });
 
-  it('keeps the tower plaza clear and stays on the island', () => {
-    for (const b of buildings) {
-      const d = Math.hypot(b.x, b.z);
-      expect(d).toBeGreaterThan(CITY.plazaRadius - 10);
-      expect(d).toBeLessThan(CITY.radius);
+  it('gives each tower a distinct silhouette name', () => {
+    const names = TOWERS.map((site) => LANDMARK_BUILDERS[site.section](site).group.name);
+    expect(new Set(names).size).toBe(5);
+  });
+});
+
+describe('city meshes', () => {
+  it('draws the downtown buildings as a handful of instanced meshes', () => {
+    const buildings = createBuildings();
+    const instanced = buildings.children.filter((c) => (c as THREE.InstancedMesh).isInstancedMesh);
+    expect(instanced.length).toBe(buildings.children.length);
+    expect(instanced.length).toBeLessThanOrEqual(3);
+  });
+
+  it('instances trees and streetlights', () => {
+    for (const group of [createTrees(), createStreetlights()]) {
+      expect(group.children.every((c) => (c as THREE.InstancedMesh).isInstancedMesh)).toBe(true);
     }
   });
 
-  it('reports rooftop heights for flight and zero over open ground', () => {
-    const field = new CityHeightField(buildings, 0);
-    const b = buildings[0];
-    expect(field.heightAt(b.x, b.z)).toBeCloseTo(b.height, 5);
-    expect(field.heightAt(0, 0)).toBe(0);
-  });
-
-  it('renders all buildings with two instanced draw calls', () => {
-    const city = createCity(buildings);
-    const instanced = city.children.filter((c) => (c as THREE.InstancedMesh).isInstancedMesh) as THREE.InstancedMesh[];
-    expect(instanced).toHaveLength(2);
-    expect(instanced.every((m) => m.count === buildings.length)).toBe(true);
-  });
-});
-
-describe('terrain', () => {
-  it('is flat under the city and hilly at the rim', () => {
-    expect(terrainHeight(0, 0)).toBe(0);
-    expect(terrainHeight(ISLAND.flatRadius - 1, 0)).toBe(0);
-    const rim = (ISLAND.flatRadius + ISLAND.radius) / 2;
-    expect(terrainHeight(rim, 0)).toBeGreaterThan(2);
-  });
-});
-
-describe('ship and stations', () => {
-  it('builds a ship with two engine flames', () => {
-    const flames: THREE.Object3D[] = [];
-    createSpaceship().traverse((o) => o.name === SHIP_FLAME && flames.push(o));
-    expect(flames).toHaveLength(2);
-  });
-
-  it('gives every station a pulsing light', () => {
-    for (const build of [createObservatory, createShipyard, createBeacon, createMonolith]) {
-      expect(build().getObjectByName(STATION_LIGHT)).toBeDefined();
-    }
+  it('samples the loop path along the boulevard centerline, all the way round', () => {
+    const points = loopPath(0, 10);
+    const perimeter = 8 * (LOOP.half - LOOP.cornerRadius) + 2 * Math.PI * LOOP.cornerRadius;
+    expect(points.length).toBeGreaterThan(perimeter / 10 - 4);
+    for (const p of points) expect(Math.abs(distanceToLoop(p.x, p.z))).toBeLessThan(0.01);
   });
 });

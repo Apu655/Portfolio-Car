@@ -8,6 +8,11 @@ describe('role date formatting', () => {
     expect(formatRoleDates({ start: '2024-09', end: null })).toBe('Sep 2024 – Present');
   });
 
+  it('formats the career role as Nov 2023 – Jul 2026', () => {
+    expect(formatRoleDates({ start: '2023-11', end: '2026-07' })).toBe('Nov 2023 – Jul 2026');
+    expect(formatRoleDuration({ start: '2023-11', end: '2026-07' })).toBe('2 yrs 9 mos');
+  });
+
   it('counts duration inclusively of both months', () => {
     expect(formatRoleDuration({ start: '2022-04', end: '2024-08' })).toBe('2 yrs 5 mos');
     expect(formatRoleDuration({ start: '2020-01', end: '2020-12' })).toBe('1 yr');

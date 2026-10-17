@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { sameSelection, type Selection, type View } from './route';
+import { sameSelection, type Section, type Selection, type View } from './route';
 
 /** Length of each half of the view switch (fade out, then fade in). */
 export const VIEW_TRANSITION_MS = 450;
@@ -16,8 +16,12 @@ export interface PortfolioState {
   webglAvailable: boolean;
   reducedMotion: boolean;
   transition: TransitionPhase;
-  /** Increments on every navigation request so views can react (fly there, scroll there) even to repeats. */
+  /** Increments on every navigation request so views can react (drive there, scroll there) even to repeats. */
   navToken: number;
+  /** 3D view: whether the latest navigation should move the car to its destination (false when already there). */
+  travel: boolean;
+  /** 3D view: the tower whose entrance zone the car is currently inside. */
+  nearTower: Exclude<Section, 'about'> | null;
   /** How the URL should record the latest change. */
   historyMode: 'push' | 'replace';
   /** Set when a keyboard/menu navigation should move focus into the info panel. */
@@ -26,7 +30,7 @@ export interface PortfolioState {
   hovered: string | null;
 
   init(options: { view: View; selection: Selection | null; notice: string | null; webglAvailable: boolean; reducedMotion: boolean }): void;
-  navigate(selection: Selection | null, options?: { focusPanel?: boolean }): void;
+  navigate(selection: Selection | null, options?: { focusPanel?: boolean; travel?: boolean }): void;
   /** Update "where you are" without moving anything — used when the basic view scrolls. */
   syncSelection(selection: Selection | null): void;
   closePanel(): void;
@@ -36,6 +40,7 @@ export interface PortfolioState {
   applyRoute(view: View, selection: Selection | null): void;
   dismissNotice(): void;
   setHovered(id: string | null): void;
+  setNearTower(section: Exclude<Section, 'about'> | null): void;
 }
 
 let transitionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -50,6 +55,8 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
   reducedMotion: false,
   transition: 'idle',
   navToken: 0,
+  travel: true,
+  nearTower: null,
   historyMode: 'replace',
   focusPanel: false,
   hovered: null,
@@ -65,6 +72,7 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
       menuOpen: false,
       transition: 'idle',
       navToken: get().navToken + 1,
+      travel: true,
       historyMode: 'replace',
     }),
 
@@ -74,6 +82,7 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
       panelOpen: selection !== null,
       menuOpen: false,
       navToken: s.navToken + 1,
+      travel: options?.travel ?? true,
       historyMode: 'push',
       focusPanel: options?.focusPanel ?? false,
     })),
@@ -101,6 +110,7 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
         menuOpen: false,
         panelOpen: s.selection !== null,
         navToken: s.navToken + 1,
+        travel: true,
         historyMode: 'push',
       }));
     if (state.reducedMotion) {
@@ -130,6 +140,7 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
       menuOpen: false,
       transition: 'idle',
       navToken: s.navToken + 1,
+      travel: true,
       historyMode: 'replace',
     }));
   },
@@ -138,5 +149,9 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
 
   setHovered: (hovered) => {
     if (get().hovered !== hovered) set({ hovered });
+  },
+
+  setNearTower: (nearTower) => {
+    if (get().nearTower !== nearTower) set({ nearTower });
   },
 }));

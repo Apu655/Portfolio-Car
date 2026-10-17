@@ -1,8 +1,8 @@
-import { papers, projects, roles } from '../content/portfolio';
+import { education, papers, projects } from '../content/portfolio';
 
 export type View = '3d' | 'basic';
 
-export const SECTIONS = ['about', 'experience', 'research', 'projects', 'contact'] as const;
+export const SECTIONS = ['about', 'experience', 'research', 'projects', 'education', 'contact'] as const;
 export type Section = (typeof SECTIONS)[number];
 
 export const SECTION_LABELS: Record<Section, string> = {
@@ -10,10 +10,11 @@ export const SECTION_LABELS: Record<Section, string> = {
   experience: 'Experience',
   research: 'Research',
   projects: 'Projects',
+  education: 'Education',
   contact: 'Contact',
 };
 
-/** Where the visitor is: a section, optionally one item inside it (a role, paper, or project). */
+/** Where the visitor is: a section, optionally one item inside it (a paper, project, or qualification). */
 export interface Selection {
   section: Section;
   itemId?: string;
@@ -26,16 +27,16 @@ export interface Route {
 }
 
 const ITEM_IDS: Partial<Record<Section, Set<string>>> = {
-  experience: new Set(roles.map((r) => r.id)),
   research: new Set(papers.map((p) => p.id)),
   projects: new Set(projects.map((p) => p.id)),
+  education: new Set(education.map((e) => e.id)),
 };
 
 function isSection(value: string): value is Section {
   return (SECTIONS as readonly string[]).includes(value);
 }
 
-/** Parses "#/3d/experience/senior-engineer" style hashes. Unknown parts are dropped, never thrown. */
+/** Parses "#/3d/research/llm-calibration" style hashes. Unknown parts are dropped, never thrown. */
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   let view: View | null = null;

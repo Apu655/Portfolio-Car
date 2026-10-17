@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { roles } from '../content/portfolio';
-import { SECTIONS, SECTION_LABELS, type Selection } from '../state/route';
+import { profile } from '../content/portfolio';
+import type { Selection } from '../state/route';
 import { usePortfolio } from '../state/store';
+import { TOWER_NAMES } from './PanelContent';
 
 export const NAV_MENU_ID = 'nav-menu';
 
-/** Jump list for every portfolio place. In 3D, choosing an entry flies the ship there and opens its panel. */
+const DESTINATIONS = Object.entries(TOWER_NAMES) as Array<[Exclude<Selection['section'], 'about'>, string]>;
+
+/** Fast travel: choosing a tower moves the car to its entrance and opens its panel. */
 export function NavMenu() {
   const open = usePortfolio((s) => s.menuOpen);
   const navigate = usePortfolio((s) => s.navigate);
@@ -20,29 +23,24 @@ export function NavMenu() {
   const go = (selection: Selection) => navigate(selection, { focusPanel: true });
 
   return (
-    <nav id={NAV_MENU_ID} className="nav-menu" aria-label="Portfolio sections" data-keyboard-scope>
+    <nav id={NAV_MENU_ID} className="nav-menu" aria-label="Fast travel" data-keyboard-scope>
+      <p className="nav-menu__title">Fast travel</p>
       <ul>
-        {SECTIONS.map((section, i) => (
+        {DESTINATIONS.map(([section, name], i) => (
           <li key={section}>
             <button type="button" ref={i === 0 ? firstItem : undefined} onClick={() => go({ section })}>
-              {SECTION_LABELS[section]}
+              {name}
             </button>
-            {section === 'experience' && (
-              <ul className="nav-menu__sub">
-                {[...roles].reverse().map((role) => (
-                  <li key={role.id}>
-                    <button type="button" onClick={() => go({ section, itemId: role.id })}>
-                      {role.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </li>
         ))}
+        <li>
+          <button type="button" onClick={() => go({ section: 'about' })}>
+            About {profile.name}
+          </button>
+        </li>
       </ul>
       <button type="button" className="nav-menu__switch" onClick={() => switchView('basic')}>
-        Open quick view instead
+        Browse the conventional portfolio
       </button>
     </nav>
   );

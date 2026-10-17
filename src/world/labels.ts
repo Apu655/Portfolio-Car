@@ -1,15 +1,11 @@
-import { roles } from '../content/portfolio';
-import { parseYearMonth } from '../content/format';
-import { TOWER } from '../models/tower';
 import type { Selection } from '../state/route';
-import type { Vec3 } from './flight/flightModel';
-import { STATION_POSITIONS, TOWER_LAYOUT, TOWER_POSITION } from './layout';
+import { TOWERS } from './city/cityLayout';
 
 /** A floating name tag over something selectable in the world. */
 export interface WorldLabel {
   id: string;
   text: string;
-  position: Vec3;
+  position: [number, number, number];
   selection: Selection;
   /** Shown at all times (landmarks); otherwise only on hover or while open. */
   always: boolean;
@@ -17,35 +13,15 @@ export interface WorldLabel {
   exact: boolean;
 }
 
-const station = (section: keyof typeof STATION_POSITIONS, text: string, height: number): WorldLabel => {
-  const [x, y, z] = STATION_POSITIONS[section];
-  return { id: section, text, position: [x, y + height, z], selection: { section }, always: true, exact: false };
-};
-
-export const WORLD_LABELS: WorldLabel[] = [
-  station('about', 'About me', 13),
-  station('research', 'Research Observatory', 17),
-  station('projects', 'Projects Shipyard', 12),
-  station('contact', 'Contact Beacon', 25),
-  {
-    id: 'experience',
-    text: 'Career Tower · Experience',
-    position: [TOWER_POSITION[0], TOWER_LAYOUT.height + 4, TOWER_POSITION[2]],
-    selection: { section: 'experience' },
-    always: true,
-    exact: true,
-  },
-  ...roles.map(
-    (role, i): WorldLabel => ({
-      id: `experience/${role.id}`,
-      text: `${role.title} · ${parseYearMonth(role.start).year}`,
-      position: [TOWER_POSITION[0], TOWER_LAYOUT.floorCenters[i], TOWER_POSITION[2] + TOWER.shaftWidth / 2 + 3],
-      selection: { section: 'experience', itemId: role.id },
-      always: false,
-      exact: true,
-    }),
-  ),
-];
+/** One tag per landmark, hovering over its entrance zone at the curb. */
+export const WORLD_LABELS: WorldLabel[] = TOWERS.map((t) => ({
+  id: t.section,
+  text: t.name,
+  position: [t.entrance[0] + t.outward[0] * 4, 9, t.entrance[1] + t.outward[1] * 4],
+  selection: { section: t.section },
+  always: true,
+  exact: false,
+}));
 
 export function labelIdFor(selection: Selection): string {
   return selection.itemId ? `${selection.section}/${selection.itemId}` : selection.section;

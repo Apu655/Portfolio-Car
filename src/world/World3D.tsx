@@ -1,27 +1,33 @@
+import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { WorldLabels } from '../ui/WorldLabels';
-import { CareerTower } from './scene/CareerTower';
-import { CityScene } from './scene/CityScene';
+import { CarRig } from './scene/CarRig';
+import { City } from './scene/City';
 import { LabelProjector } from './scene/LabelProjector';
-import { ShipRig } from './scene/ShipRig';
-import { SpaceBackdrop } from './scene/SpaceBackdrop';
-import { Stations } from './scene/Stations';
+import { Landmarks } from './scene/Landmarks';
+import { CityLighting } from './scene/Lighting';
 
-/** The 3D world and its name tags. Loaded lazily, so the basic view never downloads three.js. */
+/** Phones and tablets skip real-time shadows to keep the frame rate up. */
+function prefersLightweight(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+}
+
+/** The 3D city and its name tags. Loaded lazily, so the quick view never downloads three.js. */
 export default function World3D() {
+  const lightweight = useMemo(prefersLightweight, []);
   return (
     <>
-      <div className="world" role="region" aria-label="3D portfolio world. Use the Menu button to navigate with a keyboard or screen reader.">
+      <div className="world" role="region" aria-label="3D city. Use the Menu button to visit each tower with a keyboard or screen reader.">
         <Canvas
-          dpr={[1, 1.75]}
-          camera={{ fov: 60, near: 0.5, far: 6000, position: [0, 60, 260] }}
+          shadows={!lightweight}
+          dpr={lightweight ? [1, 1.5] : [1, 2]}
+          camera={{ fov: 58, near: 0.3, far: 4000, position: [-90, 8, 180] }}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
         >
-          <SpaceBackdrop />
-          <CityScene />
-          <CareerTower />
-          <Stations />
-          <ShipRig />
+          <CityLighting shadows={!lightweight} />
+          <City />
+          <Landmarks />
+          <CarRig />
           <LabelProjector />
         </Canvas>
       </div>

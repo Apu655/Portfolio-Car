@@ -1,17 +1,14 @@
-// Exports the procedural models to binary glTF (.glb) in models-export/, so they can be opened, inspected,
-// or hand-refined in Blender (File → Import → glTF 2.0). The site itself builds models in code at runtime.
+// Exports the procedural car and landmark towers to binary glTF (.glb) in models-export/, so they can be opened,
+// inspected, or hand-refined in Blender (File → Import → glTF 2.0). The site itself builds models in code.
 //
 //   npm run models:export
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { roles } from '../src/content/portfolio';
-import { createCity, layoutCity } from '../src/models/city';
-import { createSpaceship } from '../src/models/ship';
-import { createBeacon, createMonolith, createObservatory, createShipyard } from '../src/models/stations';
-import { createIsland } from '../src/models/terrain';
-import { createCareerTower } from '../src/models/tower';
+import { createRetroCoupe } from '../src/models/car';
+import { LANDMARK_BUILDERS } from '../src/models/landmarks';
+import { TOWERS } from '../src/world/city/cityLayout';
 
 // GLTFExporter packs binary output through the browser FileReader API; Node has Blob but not FileReader.
 class NodeFileReader {
@@ -34,23 +31,25 @@ class NodeFileReader {
 }
 (globalThis as Record<string, unknown>).FileReader ??= NodeFileReader;
 
-function tower(): THREE.Group {
-  const { shell, floors } = createCareerTower(roles.map((r) => r.id));
-  const group = new THREE.Group();
-  group.name = 'CareerTower';
-  group.add(shell, ...floors);
-  return group;
+/** Procedural textures need a canvas to encode as PNG, which Node lacks; export colors and shapes only. */
+function stripTextures(root: THREE.Object3D): THREE.Object3D {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mesh.material = materials.map((m) => {
+      const copy = m.clone() as THREE.MeshStandardMaterial;
+      for (const key of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'alphaMap'] as const) copy[key] = null;
+      return copy;
+    }) as THREE.Material[];
+    if (materials.length === 1) mesh.material = (mesh.material as THREE.Material[])[0];
+  });
+  return root;
 }
 
 const MODELS: Record<string, () => THREE.Object3D> = {
-  spaceship: createSpaceship,
-  'career-tower': tower,
-  city: () => createCity(layoutCity()),
-  island: createIsland,
-  'research-observatory': createObservatory,
-  'projects-shipyard': createShipyard,
-  'contact-beacon': createBeacon,
-  'about-monolith': createMonolith,
+  'retro-coupe': () => createRetroCoupe().group,
+  ...Object.fromEntries(TOWERS.map((site) => [`tower-${site.section}`, () => LANDMARK_BUILDERS[site.section](site).group])),
 };
 
 const outDir = fileURLToPath(new URL('../models-export/', import.meta.url));
@@ -59,9 +58,8 @@ const exporter = new GLTFExporter();
 
 for (const [name, build] of Object.entries(MODELS)) {
   const scene = new THREE.Scene();
-  scene.add(build());
+  scene.add(stripTextures(build()));
   const glb = (await exporter.parseAsync(scene, { binary: true })) as ArrayBuffer;
-  const file = `${outDir}${name}.glb`;
-  writeFileSync(file, Buffer.from(glb));
-  console.log(`${name.padEnd(22)} ${(glb.byteLength / 1024).toFixed(1).padStart(7)} KB  →  models-export/${name}.glb`);
+  writeFileSync(`${outDir}${name}.glb`, Buffer.from(glb));
+  console.log(`${name.padEnd(20)} ${(glb.byteLength / 1024).toFixed(1).padStart(7)} KB  →  models-export/${name}.glb`);
 }

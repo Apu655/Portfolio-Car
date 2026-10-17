@@ -1,11 +1,10 @@
-// Single source of portfolio content. Both the 3D world and the basic view render from this file.
-// Everything here is placeholder content — replace it with your real career data.
+// Single source of portfolio content. Both the 3D city and the quick view render from this file.
+// The career role's title and dates are real; everything marked "Placeholder" is waiting for your content.
 
-/** Year and month, e.g. "2022-04". */
+/** Year and month, e.g. "2023-11". */
 export type YearMonth = `${number}-${number}`;
 
 export interface Role {
-  id: string;
   title: string;
   organization: string;
   location: string;
@@ -13,9 +12,13 @@ export interface Role {
   /** null means "Present". */
   end: YearMonth | null;
   summary: string;
+  responsibilities: string[];
   achievements: string[];
   skills: string[];
 }
+
+export const RESEARCH_THEMES = ['Healthcare AI', 'NLP', 'LLM research'] as const;
+export type ResearchTheme = (typeof RESEARCH_THEMES)[number];
 
 export interface Paper {
   id: string;
@@ -23,6 +26,7 @@ export interface Paper {
   authors: string;
   venue: string;
   year: number;
+  theme: ResearchTheme;
   abstract: string;
   link: string;
 }
@@ -32,8 +36,20 @@ export interface Project {
   name: string;
   year: number;
   description: string;
-  tags: string[];
-  link: string;
+  technologies: string[];
+  /** Live demo URL, when there is one. */
+  demo?: string;
+  repo: string;
+}
+
+export interface Education {
+  id: string;
+  degree: string;
+  institution: string;
+  location: string;
+  start: YearMonth;
+  end: YearMonth | null;
+  achievements: string[];
 }
 
 export interface ContactLink {
@@ -51,135 +67,115 @@ export interface Profile {
 
 export const profile: Profile = {
   name: 'Your Name',
-  headline: 'Research Engineer · Gamification & Interactive Systems',
+  headline: 'Software Engineer – AI · Healthcare AI, NLP & LLM research',
   pitch:
-    'I study and build playful systems that change how people learn, work, and collaborate — bridging HCI research and production engineering.',
+    'I build AI systems that hold up in production, and I study how language models can be made reliable enough for healthcare. (Placeholder pitch — replace with your own.)',
   resumeUrl: '/resume.pdf',
   contact: [
     { label: 'Email', href: 'mailto:you@example.com' },
-    { label: 'GitHub', href: 'https://github.com/your-handle' },
     { label: 'LinkedIn', href: 'https://www.linkedin.com/in/your-handle' },
-    { label: 'Google Scholar', href: 'https://scholar.google.com/' },
+    { label: 'GitHub', href: 'https://github.com/your-handle' },
   ],
 };
 
-/** Ordered oldest → newest. The career tower stacks them bottom → top. */
-export const roles: Role[] = [
-  {
-    id: 'research-assistant',
-    title: 'Research Assistant',
-    organization: 'Placeholder University · HCI Lab',
-    location: 'City, Country',
-    start: '2018-09',
-    end: '2020-06',
-    summary: 'Ran user studies on game mechanics for learning platforms.',
-    achievements: [
-      'Designed and ran 4 controlled studies with 300+ participants',
-      'Co-authored 2 peer-reviewed papers on reward schedules',
-      'Built the lab’s reusable experiment toolkit in TypeScript',
-    ],
-    skills: ['User studies', 'Statistics', 'TypeScript'],
-  },
-  {
-    id: 'software-engineer',
-    title: 'Software Engineer',
-    organization: 'Placeholder Games Studio',
-    location: 'City, Country',
-    start: '2020-07',
-    end: '2022-03',
-    summary: 'Shipped gameplay and live-ops features for a mobile title.',
-    achievements: [
-      'Shipped a seasonal progression system used by 1M+ players',
-      'Cut client load time by 40% with asset streaming',
-      'Mentored 3 junior engineers',
-    ],
-    skills: ['Unity', 'C#', 'Live ops'],
-  },
-  {
-    id: 'senior-engineer',
-    title: 'Senior Engineer, Gamification',
-    organization: 'Placeholder Tech Co.',
-    location: 'City, Country',
-    start: '2022-04',
-    end: '2024-08',
-    summary: 'Led the engagement platform powering quests and achievements.',
-    achievements: [
-      'Led a 6-person team building a quests and achievements platform',
-      'Raised 30-day retention by 12% across 3 products',
-      'Published an internal playbook on ethical engagement design',
-    ],
-    skills: ['React', 'Node.js', 'Experimentation'],
-  },
-  {
-    id: 'lead-research-engineer',
-    title: 'Lead Research Engineer',
-    organization: 'Placeholder Labs',
-    location: 'Remote',
-    start: '2024-09',
-    end: null,
-    summary: 'Bridges applied research and product for playful learning tools.',
-    achievements: [
-      'Set the research roadmap for adaptive game-based learning',
-      'Shipped a WebGL learning sandbox to 50k students',
-      'Organized a workshop on gamification at a major HCI venue',
-    ],
-    skills: ['Three.js', 'Research leadership', 'Python'],
-  },
-];
+export const role: Role = {
+  title: 'Software Engineer – AI',
+  organization: 'Placeholder Company',
+  location: 'City, Country',
+  start: '2023-11',
+  end: '2026-07',
+  summary: 'Placeholder: designed, shipped, and operated AI features end to end.',
+  responsibilities: [
+    'Placeholder: owned the LLM-powered document understanding pipeline from prototype to production',
+    'Placeholder: built evaluation harnesses and guardrails for model quality and safety',
+    'Placeholder: partnered with clinicians and product teams to turn research into features',
+  ],
+  achievements: [
+    'Placeholder: cut inference cost by 40% with batching and model distillation',
+    'Placeholder: raised extraction accuracy from 82% to 94% on a held-out clinical benchmark',
+    'Placeholder: mentored 3 engineers and led the team’s ML reliability practice',
+  ],
+  skills: ['Python', 'PyTorch', 'LLMs', 'NLP', 'TypeScript', 'MLOps'],
+};
 
 export const papers: Paper[] = [
   {
-    id: 'reward-schedules',
-    title: 'Placeholder: Reward Schedules and Persistence in Learning Games',
-    authors: 'Your Name, A. Collaborator, B. Advisor',
-    venue: 'Placeholder HCI Conference',
-    year: 2020,
-    abstract: 'A controlled study of how variable reward schedules affect persistence in game-based learning.',
+    id: 'clinical-notes-llm',
+    title: 'Placeholder: Structured Extraction from Clinical Notes with Small Language Models',
+    authors: 'Your Name, A. Collaborator',
+    venue: 'Placeholder Workshop on Clinical NLP',
+    year: 2025,
+    theme: 'Healthcare AI',
+    abstract: 'Placeholder abstract: an evaluation of compact models for extracting medications and diagnoses.',
     link: 'https://doi.org/10.0000/placeholder-1',
   },
   {
-    id: 'ethical-engagement',
-    title: 'Placeholder: Designing for Ethical Engagement',
-    authors: 'Your Name, C. Coauthor',
-    venue: 'Placeholder Journal of Interactive Systems',
-    year: 2023,
-    abstract: 'A framework for evaluating gamification features against user wellbeing.',
+    id: 'multilingual-ner',
+    title: 'Placeholder: Low-Resource Named Entity Recognition Across Languages',
+    authors: 'Your Name, B. Coauthor',
+    venue: 'Placeholder NLP Conference',
+    year: 2024,
+    theme: 'NLP',
+    abstract: 'Placeholder abstract: transfer learning for entity recognition with fewer than 1,000 labeled examples.',
     link: 'https://doi.org/10.0000/placeholder-2',
   },
   {
-    id: 'adaptive-quests',
-    title: 'Placeholder: Adaptive Quests for Self-Paced Learners',
-    authors: 'Your Name, D. Researcher',
-    venue: 'Placeholder Learning @ Scale (preprint)',
-    year: 2025,
-    abstract: 'An adaptive quest generator that tunes challenge to learner progress.',
+    id: 'llm-calibration',
+    title: 'Placeholder: When Should a Language Model Say “I Don’t Know”?',
+    authors: 'Your Name, C. Researcher',
+    venue: 'Placeholder (preprint)',
+    year: 2026,
+    theme: 'LLM research',
+    abstract: 'Placeholder abstract: calibration and abstention for LLMs answering high-stakes questions.',
     link: 'https://arxiv.org/abs/0000.00000',
   },
 ];
 
 export const projects: Project[] = [
   {
-    id: 'career-cosmos',
-    name: 'Career Cosmos (this site)',
+    id: 'career-city',
+    name: 'Career City (this site)',
     year: 2026,
-    description: 'A 3D portfolio built with React Three Fiber, with a fast accessible basic view.',
-    tags: ['Three.js', 'React', 'Accessibility'],
-    link: 'https://github.com/your-handle/portfolio',
+    description: 'A drivable 3D portfolio built with React Three Fiber, with a fast conventional quick view.',
+    technologies: ['React', 'Three.js', 'TypeScript'],
+    repo: 'https://github.com/your-handle/portfolio',
   },
   {
-    id: 'quest-engine',
-    name: 'Quest Engine',
-    year: 2024,
-    description: 'An open-source rules engine for quests, streaks, and achievements.',
-    tags: ['TypeScript', 'Gamification'],
-    link: 'https://github.com/your-handle/quest-engine',
-  },
-  {
-    id: 'math-sandbox',
-    name: 'Math Sandbox',
+    id: 'triage-assistant',
+    name: 'Placeholder: Triage Assistant',
     year: 2025,
-    description: 'A browser-based physics playground for teaching vectors through play.',
-    tags: ['WebGL', 'Education'],
-    link: 'https://github.com/your-handle/math-sandbox',
+    description: 'Placeholder: an LLM assistant that drafts triage summaries for clinicians to review.',
+    technologies: ['Python', 'FastAPI', 'LLMs'],
+    demo: 'https://example.com/demo',
+    repo: 'https://github.com/your-handle/triage-assistant',
+  },
+  {
+    id: 'eval-kit',
+    name: 'Placeholder: Eval Kit',
+    year: 2024,
+    description: 'Placeholder: an open-source toolkit for regression-testing prompts and models.',
+    technologies: ['TypeScript', 'Node.js'],
+    repo: 'https://github.com/your-handle/eval-kit',
+  },
+];
+
+export const education: Education[] = [
+  {
+    id: 'msc',
+    degree: 'Placeholder: M.Sc. in Computer Science (AI)',
+    institution: 'Placeholder University',
+    location: 'City, Country',
+    start: '2021-09',
+    end: '2023-06',
+    achievements: ['Placeholder: thesis on clinical language models', 'Placeholder: graduated with distinction'],
+  },
+  {
+    id: 'bsc',
+    degree: 'Placeholder: B.Sc. in Computer Science',
+    institution: 'Placeholder Institute of Technology',
+    location: 'City, Country',
+    start: '2017-09',
+    end: '2021-06',
+    achievements: ['Placeholder: Dean’s list', 'Placeholder: ACM programming contest finalist'],
   },
 ];
