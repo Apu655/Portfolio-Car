@@ -4,6 +4,7 @@ import {
   CuboidCollider,
   CylinderCollider,
   RigidBody,
+  useRapier,
   type ContactForcePayload,
   type RapierRigidBody,
 } from '@react-three/rapier';
@@ -16,11 +17,13 @@ import { MODEL_URLS, enableShadows, useModel } from './District';
 /** Minimum seconds between impact sounds from the same object. */
 const IMPACT_COOLDOWN = 0.15;
 
-interface Tracked {
-  body: RapierRigidBody;
-  rest: PropPlacement;
-  idle: number;
+/** Tag stored on each prop's physics body, so bodies are always looked up live from the world. */
+interface PropTag {
+  prop: number;
+  brick?: number;
 }
+
+const tagOf = (body: RapierRigidBody) => body.userData as PropTag | undefined;
 
 function restCenter(p: PropPlacement): [number, number, number] {
   return [p.position[0], p.position[1] + PROP_SPECS[p.kind].half[1], p.position[2]];
@@ -39,16 +42,18 @@ function Collider({ kind }: { kind: PropPlacement['kind'] }) {
 export function Props() {
   const gltf = useModel(MODEL_URLS.props);
   const camera = useThree((s) => s.camera);
-  const tracked = useRef<Tracked[]>([]);
+  const rapier = useRapier();
+  // Seconds each prop has been still, by index into PROPS.
+  const idle = useMemo(() => new Float32Array(PROPS.length), []);
   const lastImpact = useRef(new Map<number, number>());
   const clock = useRef(0);
   const sinceReset = useRef(0);
   const scratch = useMemo(() => ({ frustum: new THREE.Frustum(), matrix: new THREE.Matrix4(), point: new THREE.Vector3() }), []);
 
-  const loose = useMemo(() => PROPS.filter((p) => p.kind !== 'brick'), []);
-  const bricks = useMemo(() => PROPS.filter((p) => p.kind === 'brick'), []);
+  const loose = useMemo(() => PROPS.map((p, index) => ({ p, index })).filter(({ p }) => p.kind !== 'brick'), []);
+  const bricks = useMemo(() => PROPS.map((p, index) => ({ p, index })).filter(({ p }) => p.kind === 'brick'), []);
   const visuals = useMemo(
-    () => loose.map((p) => enableShadows(gltf.scene.getObjectByName(`prop_${p.kind}`)!.clone(), true, true)),
+    () => loose.map(({ p }) => enableShadows(gltf.scene.getObjectByName(`prop_${p.kind}`)!.clone(), true, true)),
     [gltf, loose],
   );
   const brickMesh = useMemo(() => {
@@ -58,7 +63,6 @@ export function Props() {
     return { geometry: source.geometry, material: source.material as THREE.Material, local: source.matrix.clone() };
   }, [gltf]);
   // Bricks are plain bodies drawn through one instanced mesh, synced each frame while awake.
-  const brickBodies = useRef<(RapierRigidBody | null)[]>([]);
   const brickInstances = useRef<THREE.InstancedMesh>(null);
   const brickMatrix = useMemo(() => ({ m: new THREE.Matrix4(), p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3(1, 1, 1) }), []);
 
@@ -77,67 +81,68 @@ export function Props() {
 
   // Start everything asleep so the stacks don't jitter before the car arrives.
   useEffect(() => {
-    const timer = setTimeout(() => tracked.current.forEach((t) => t.body.isValid() && t.body.sleep()), 300);
+    const timer = setTimeout(() => rapier.world.forEachRigidBody((body) => tagOf(body) && body.sleep()), 300);
     return () => clearTimeout(timer);
-  }, []);
+  }, [rapier]);
 
-  // Put disturbed props back once they have been still for a while and the visitor isn't looking.
   useFrame((_, dt) => {
     clock.current += dt;
+    const world = rapier.world;
+
+    // Draw bricks where their bodies are: every brick once after (re)placement, then only the awake ones.
     const mesh = brickInstances.current;
     if (mesh) {
       let moved = false;
-      brickBodies.current.forEach((body, i) => {
-        if (!body?.isValid() || (body.isSleeping() && mesh.userData.synced)) return;
+      const sync = (body: RapierRigidBody) => {
+        const brick = tagOf(body)?.brick;
+        if (brick === undefined) return;
         const t = body.translation();
         const r = body.rotation();
         brickMatrix.m.compose(brickMatrix.p.set(t.x, t.y, t.z), brickMatrix.q.set(r.x, r.y, r.z, r.w), brickMatrix.s);
-        mesh.setMatrixAt(i, brickMatrix.m.multiply(brickMesh.local));
+        mesh.setMatrixAt(brick, brickMatrix.m.multiply(brickMesh.local));
         moved = true;
-      });
+      };
+      if (mesh.userData.synced) world.forEachActiveRigidBody(sync);
+      else world.forEachRigidBody(sync);
       if (moved) mesh.instanceMatrix.needsUpdate = true;
       mesh.userData.synced = true;
     }
+
+    // Once a second, put disturbed props back once they have been still for a while and the visitor isn't looking.
     sinceReset.current += dt;
     if (sinceReset.current < 1) return;
     const elapsed = sinceReset.current;
     sinceReset.current = 0;
     scratch.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     scratch.frustum.setFromProjectionMatrix(scratch.matrix);
-    for (const t of tracked.current) {
-      if (!t.body.isValid()) continue;
-      const p = t.body.translation();
-      const v = t.body.linvel();
-      const moving = Math.hypot(v.x, v.y, v.z) > 0.05;
-      t.idle = moving ? 0 : t.idle + elapsed;
-      const rest = restCenter(t.rest);
-      const q = t.body.rotation();
+    world.forEachRigidBody((body) => {
+      const tag = tagOf(body);
+      if (!tag) return;
+      const rest = PROPS[tag.prop];
+      const p = body.translation();
+      const v = body.linvel();
+      idle[tag.prop] = Math.hypot(v.x, v.y, v.z) > 0.05 ? 0 : idle[tag.prop] + elapsed;
+      const home = restCenter(rest);
+      const q = body.rotation();
       const tilt = 2 * (q.x * q.x + q.z * q.z); // 0 upright, 2 upside down
       const visible = scratch.frustum.containsPoint(scratch.point.set(p.x, p.y, p.z));
-      if (shouldReset({ displaced: Math.hypot(p.x - rest[0], p.y - rest[1], p.z - rest[2]), tilt, idleSeconds: t.idle, visible })) {
-        t.body.setTranslation({ x: rest[0], y: rest[1], z: rest[2] }, false);
-        t.body.setRotation({ x: 0, y: Math.sin(t.rest.rotationY / 2), z: 0, w: Math.cos(t.rest.rotationY / 2) }, false);
-        t.body.setLinvel({ x: 0, y: 0, z: 0 }, false);
-        t.body.setAngvel({ x: 0, y: 0, z: 0 }, false);
-        t.body.sleep();
-        t.idle = 0;
-        if (mesh) mesh.userData.synced = false; // sleeping bricks are skipped, so redraw them all once
-      }
-    }
+      if (!shouldReset({ displaced: Math.hypot(p.x - home[0], p.y - home[1], p.z - home[2]), tilt, idleSeconds: idle[tag.prop], visible })) return;
+      body.setTranslation({ x: home[0], y: home[1], z: home[2] }, false);
+      body.setRotation({ x: 0, y: Math.sin(rest.rotationY / 2), z: 0, w: Math.cos(rest.rotationY / 2) }, false);
+      body.setLinvel({ x: 0, y: 0, z: 0 }, false);
+      body.setAngvel({ x: 0, y: 0, z: 0 }, false);
+      body.sleep();
+      idle[tag.prop] = 0;
+      if (mesh && tag.brick !== undefined) mesh.userData.synced = false; // sleeping bricks are skipped, so redraw them all once
+    });
   });
 
   return (
     <>
-      {loose.map((p, i) => (
+      {loose.map(({ p, index }, i) => (
         <RigidBody
           key={p.id}
-          ref={(body) => {
-            if (!body) return;
-            tracked.current.push({ body, rest: p, idle: 0 });
-            return () => {
-              tracked.current = tracked.current.filter((t) => t.body !== body);
-            };
-          }}
+          userData={{ prop: index } satisfies PropTag}
           colliders={false}
           position={restCenter(p)}
           rotation={[0, p.rotationY, 0]}
@@ -149,21 +154,13 @@ export function Props() {
           <primitive object={visuals[i]} />
         </RigidBody>
       ))}
-      {bricks.map((b, i) => (
+      {bricks.map(({ p, index }, brick) => (
         <RigidBody
-          key={b.id}
-          ref={(body) => {
-            brickBodies.current[i] = body;
-            if (!body) return;
-            tracked.current.push({ body, rest: b, idle: 0 });
-            return () => {
-              brickBodies.current[i] = null;
-              tracked.current = tracked.current.filter((t) => t.body !== body);
-            };
-          }}
+          key={p.id}
+          userData={{ prop: index, brick } satisfies PropTag}
           colliders={false}
-          position={restCenter(b)}
-          rotation={[0, b.rotationY, 0]}
+          position={restCenter(p)}
+          rotation={[0, p.rotationY, 0]}
           onContactForce={(payload) => onImpact('brick', payload)}
           linearDamping={0.1}
           angularDamping={0.3}
