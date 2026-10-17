@@ -5,12 +5,13 @@ import { usePortfolio } from '../state/store';
 
 /** Readable content for each portfolio place. Shared by the 3D info panel and the quick view. */
 
+/** What each stop is called in the HUD, menu, and quick view. The employer appears only inside the Career panel. */
 export const TOWER_NAMES: Record<Exclude<Selection['section'], 'about'>, string> = {
-  experience: 'MetLife Career Tower',
-  research: 'AI Research Tower',
-  projects: 'Projects Tower',
-  education: 'Education Tower',
-  contact: 'Contact Tower',
+  experience: 'Career Tower',
+  research: 'Research kiosk',
+  projects: 'Projects kiosk',
+  education: 'Education kiosk',
+  contact: 'Contact kiosk',
 };
 
 export function panelTitle(selection: Selection): string {
@@ -54,11 +55,21 @@ export function RoleDetails({ role: r }: { role: Role }) {
           <li key={item}>{item}</li>
         ))}
       </ul>
-      <ul className="tags" aria-label="Skills">
-        {r.skills.map((s) => (
-          <li key={s}>{s}</li>
+      <h3>Technologies</h3>
+      <ul className="tags" aria-label="Technologies">
+        {r.technologies.map((t) => (
+          <li key={t}>{t}</li>
         ))}
       </ul>
+      {r.links.length > 0 && (
+        <p className="link-row">
+          {r.links.map((l) => (
+            <a key={l.href} href={l.href} target="_blank" rel="noreferrer">
+              {l.label}
+            </a>
+          ))}
+        </p>
+      )}
     </>
   );
 }

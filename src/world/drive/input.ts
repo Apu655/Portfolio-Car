@@ -1,5 +1,11 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import type { DriveInput } from './carModel';
+
+/** Each axis in [-1, 1]. Positive throttle drives forward; positive steer turns left. */
+export interface DriveInput {
+  throttle: number;
+  steer: number;
+  handbrake: boolean;
+}
 
 export const KEY_BINDINGS = {
   forward: ['KeyW', 'ArrowUp'],
@@ -7,6 +13,7 @@ export const KEY_BINDINGS = {
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
   handbrake: ['Space'],
+  recover: ['KeyR'],
 } as const;
 
 const DRIVE_CODES = new Set<string>(Object.values(KEY_BINDINGS).flat());
@@ -21,6 +28,11 @@ export function readKeyboardInput(pressed: ReadonlySet<string>): DriveInput {
     steer: axis(KEY_BINDINGS.left, KEY_BINDINGS.right),
     handbrake: any(pressed, KEY_BINDINGS.handbrake),
   };
+}
+
+/** Whether the recover key is held. */
+export function wantsRecover(pressed: ReadonlySet<string>): boolean {
+  return any(pressed, KEY_BINDINGS.recover);
 }
 
 /** Written by the on-screen joystick and buttons on touch devices; read by the car each frame. */

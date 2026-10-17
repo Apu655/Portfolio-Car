@@ -1,5 +1,5 @@
 import type { Selection } from '../state/route';
-import { TOWERS } from './city/cityLayout';
+import { ZONES } from './district/layout';
 
 /** A floating name tag over something selectable in the world. */
 export interface WorldLabel {
@@ -13,12 +13,12 @@ export interface WorldLabel {
   exact: boolean;
 }
 
-/** One tag per landmark, hovering over its entrance zone at the curb. */
-export const WORLD_LABELS: WorldLabel[] = TOWERS.map((t) => ({
-  id: t.section,
-  text: t.name,
-  position: [t.entrance[0] + t.outward[0] * 4, 9, t.entrance[1] + t.outward[1] * 4],
-  selection: { section: t.section },
+/** One tag per stop (the Career Tower and the four kiosks), hovering over its entrance zone. */
+export const WORLD_LABELS: WorldLabel[] = ZONES.map((zone) => ({
+  id: zone.section,
+  text: zone.name,
+  position: [zone.center[0], 6.5, zone.center[1]],
+  selection: { section: zone.section },
   always: true,
   exact: false,
 }));

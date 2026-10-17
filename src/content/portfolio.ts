@@ -4,8 +4,14 @@
 /** Year and month, e.g. "2023-11". */
 export type YearMonth = `${number}-${number}`;
 
+export interface Link {
+  label: string;
+  href: string;
+}
+
 export interface Role {
   title: string;
+  /** Employer, named in plain text only (no logos or branded imagery). */
   organization: string;
   location: string;
   start: YearMonth;
@@ -14,7 +20,8 @@ export interface Role {
   summary: string;
   responsibilities: string[];
   achievements: string[];
-  skills: string[];
+  technologies: string[];
+  links: Link[];
 }
 
 export const RESEARCH_THEMES = ['Healthcare AI', 'NLP', 'LLM research'] as const;
@@ -52,10 +59,7 @@ export interface Education {
   achievements: string[];
 }
 
-export interface ContactLink {
-  label: string;
-  href: string;
-}
+export type ContactLink = Link;
 
 export interface Profile {
   name: string;
@@ -66,7 +70,7 @@ export interface Profile {
 }
 
 export const profile: Profile = {
-  name: 'Your Name',
+  name: 'Apu Islam',
   headline: 'Software Engineer – AI · Healthcare AI, NLP & LLM research',
   pitch:
     'I build AI systems that hold up in production, and I study how language models can be made reliable enough for healthcare. (Placeholder pitch — replace with your own.)',
@@ -80,7 +84,7 @@ export const profile: Profile = {
 
 export const role: Role = {
   title: 'Software Engineer – AI',
-  organization: 'Placeholder Company',
+  organization: 'MetLife',
   location: 'City, Country',
   start: '2023-11',
   end: '2026-07',
@@ -95,7 +99,8 @@ export const role: Role = {
     'Placeholder: raised extraction accuracy from 82% to 94% on a held-out clinical benchmark',
     'Placeholder: mentored 3 engineers and led the team’s ML reliability practice',
   ],
-  skills: ['Python', 'PyTorch', 'LLMs', 'NLP', 'TypeScript', 'MLOps'],
+  technologies: ['Placeholder: Python', 'PyTorch', 'LLMs', 'NLP', 'TypeScript', 'MLOps'],
+  links: [{ label: 'Placeholder: project write-up', href: 'https://example.com/write-up' }],
 };
 
 export const papers: Paper[] = [

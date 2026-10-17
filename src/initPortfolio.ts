@@ -1,9 +1,11 @@
+import { profile } from './content/portfolio';
 import { chooseInitialView, detectCapabilities } from './lib/capabilities';
 import { parseHash } from './state/route';
 import { usePortfolio } from './state/store';
 
 /** Reads the URL and device capabilities, then decides where the visitor lands. */
 export function initPortfolio(): void {
+  document.title = `${profile.name} — Portfolio`;
   const caps = detectCapabilities();
   const route = parseHash(window.location.hash);
   const { view, notice } = chooseInitialView(route, caps);

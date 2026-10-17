@@ -4,12 +4,12 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const lines = [
-  ['F2', 22, 'Your Name'],
+  ['F2', 22, 'Apu Islam'],
   ['F1', 12, 'Software Engineer - AI  |  Healthcare AI, NLP & LLM research'],
   ['F1', 10, 'you@example.com  |  linkedin.com/in/your-handle  |  github.com/your-handle'],
   ['F2', 14, ''],
   ['F2', 14, 'Experience'],
-  ['F2', 11, 'Software Engineer - AI, Placeholder Company (Nov 2023 - Jul 2026)'],
+  ['F2', 11, 'Software Engineer - AI, MetLife (Nov 2023 - Jul 2026)'],
   ['F1', 10, 'Placeholder: owned the LLM-powered document understanding pipeline end to end.'],
   ['F1', 10, 'Placeholder: cut inference cost by 40%; raised extraction accuracy from 82% to 94%.'],
   ['F2', 14, ''],

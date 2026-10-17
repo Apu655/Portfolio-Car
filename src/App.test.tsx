@@ -35,7 +35,7 @@ describe('landing', () => {
   it('opens the 3D city first with a welcome card and the résumé one click away', async () => {
     start();
     expect(await screen.findByTestId('world-3d')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Your Name' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Apu Islam' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start driving' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Résumé' })).toHaveAttribute('href', '/resume.pdf');
     expect(screen.getByRole('link', { name: 'Résumé' })).toHaveAttribute('download');
@@ -59,6 +59,26 @@ describe('landing', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Software Engineer – AI' })).toBeInTheDocument();
   });
 
+  it('names the employer only inside the Career panel', async () => {
+    const user = start('#/3d');
+    await enterZone('experience');
+    expect(screen.getByRole('status')).not.toHaveTextContent('MetLife');
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('navigation', { name: 'Fast travel' })).not.toHaveTextContent('MetLife');
+    await user.keyboard('{Escape}');
+    await user.keyboard('e');
+    const panel = screen.getByRole('dialog', { name: 'Software Engineer – AI' });
+    expect(within(panel).getByText('MetLife')).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { name: 'Technologies' })).toBeInTheDocument();
+    expect(document.title).toContain('Apu Islam');
+  });
+
+  it('shows Apu Islam and never the employer name in the quick view navigation', () => {
+    start('#/basic');
+    expect(screen.getByRole('heading', { level: 1, name: 'Apu Islam' })).toBeInTheDocument();
+    for (const button of screen.getAllByRole('button', { name: /Visit the/ })) expect(button).not.toHaveTextContent('MetLife');
+  });
+
   it('opens a deep link straight onto the Career panel', async () => {
     start('#/3d/experience');
     const panel = await screen.findByRole('dialog', { name: 'Software Engineer – AI' });
@@ -74,11 +94,11 @@ describe('driving up to a tower and pressing E', () => {
     expect(screen.queryByText(/Press/)).not.toBeInTheDocument();
 
     await enterZone('experience');
-    expect(screen.getByRole('status')).toHaveTextContent('Press E to open the MetLife Career Tower');
+    expect(screen.getByRole('status')).toHaveTextContent('Press E to open the Career Tower');
     await user.keyboard('e');
 
     const panel = screen.getByRole('dialog', { name: 'Software Engineer – AI' });
-    expect(within(panel).getByText('MetLife Career Tower')).toBeInTheDocument();
+    expect(within(panel).getByText('MetLife')).toBeInTheDocument();
     expect(usePortfolio.getState().travel).toBe(false); // the car stays where it parked
     expect(window.location.hash).toBe('#/3d/experience');
     expect(screen.queryByText(/Press E/)).not.toBeInTheDocument(); // prompt hides while the panel is open
@@ -124,8 +144,8 @@ describe('fast travel menu', () => {
     const names = within(menu)
       .getAllByRole('button')
       .map((b) => b.textContent);
-    expect(names).toEqual(expect.arrayContaining(['MetLife Career Tower', 'AI Research Tower', 'Projects Tower', 'Education Tower', 'Contact Tower']));
-    await user.click(within(menu).getByRole('button', { name: 'Education Tower' }));
+    expect(names).toEqual(expect.arrayContaining(['Career Tower', 'Research kiosk', 'Projects kiosk', 'Education kiosk', 'Contact kiosk']));
+    await user.click(within(menu).getByRole('button', { name: 'Education kiosk' }));
 
     expect(screen.getByRole('dialog', { name: 'Education' })).toBeInTheDocument();
     expect(usePortfolio.getState().travel).toBe(true);
@@ -137,7 +157,7 @@ describe('fast travel menu', () => {
     const user = start();
     await user.keyboard('m');
     const menu = screen.getByRole('navigation', { name: 'Fast travel' });
-    expect(within(menu).getByRole('button', { name: 'MetLife Career Tower' })).toHaveFocus();
+    expect(within(menu).getByRole('button', { name: 'Career Tower' })).toHaveFocus();
     await user.keyboard('{Enter}');
     expect(screen.getByRole('dialog', { name: 'Software Engineer – AI' })).toBeInTheDocument();
 
@@ -169,7 +189,7 @@ describe('leaving driving mode keeps your place', () => {
 
   it('quick view → 3D opens that tower’s panel', async () => {
     const user = start('#/basic');
-    await user.click(screen.getByRole('button', { name: 'Visit the Projects Tower in 3D' }));
+    await user.click(screen.getByRole('button', { name: 'Visit the Projects kiosk in 3D' }));
     expect(await screen.findByTestId('world-3d', {}, SLOW)).toBeInTheDocument();
     expect(await screen.findByRole('dialog', { name: 'Projects' })).toBeInTheDocument();
     expect(window.location.hash).toBe('#/3d/projects');
@@ -188,7 +208,7 @@ describe('leaving driving mode keeps your place', () => {
 describe('browser history', () => {
   it('Back and Forward move between places and views', async () => {
     const user = start('#/basic');
-    await user.click(screen.getByRole('button', { name: 'Visit the Contact Tower in 3D' }));
+    await user.click(screen.getByRole('button', { name: 'Visit the Contact kiosk in 3D' }));
     await screen.findByRole('dialog', { name: 'Contact' }, SLOW);
 
     await act(async () => {
