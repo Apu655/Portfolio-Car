@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, type RootState } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { usePortfolio } from '../state/store';
 import { LoadingScreen } from '../ui/LoadingScreen';
@@ -15,11 +15,7 @@ import { District } from './scene/District';
 import { LabelProjector } from './scene/LabelProjector';
 import { Props } from './scene/Props';
 import { Water } from './scene/Water';
-
-/** Dev builds expose the R3F state on `window.__r3f` for console and end-to-end inspection. */
-function exposeForDebugging(state: RootState) {
-  if (import.meta.env.DEV) (window as Window & { __r3f?: RootState }).__r3f = state;
-}
+import { installTestHooks } from './testHooks';
 
 function coarsePointer(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
@@ -69,7 +65,7 @@ export default function World3D() {
   return (
     <>
       <div className="world" role="region" aria-label="3D district. Use the Menu button to visit each stop with a keyboard or screen reader.">
-        <Canvas onCreated={exposeForDebugging} shadows={settings.shadows} dpr={settings.dpr} camera={{ fov: 55, near: 0.3, far: 2000, position: [-90, 70, -90] }} gl={{ antialias: !settings.postProcessing, powerPreference: 'high-performance' }}>
+        <Canvas onCreated={installTestHooks} shadows={settings.shadows} dpr={settings.dpr} camera={{ fov: 55, near: 0.3, far: 2000, position: [-90, 70, -90] }} gl={{ antialias: !settings.postProcessing, powerPreference: 'high-performance' }}>
           <Lighting shadows={settings.shadows} shadowMapSize={settings.shadowMapSize} />
           <Suspense fallback={null}>
             <Physics timeStep={1 / 60} interpolate gravity={[0, -9.81, 0]}>

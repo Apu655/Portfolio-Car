@@ -1,44 +1,81 @@
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test';
+import type { DistrictHooks } from '../src/world/testHooks';
 
-// Real-browser smoke tests against the production build (see playwright.config.ts).
+// Real-browser smoke tests against the production build (see playwright.config.ts). `?e2e` turns on the
+// inspection hooks, which let a test put the car somewhere and watch the game events it causes.
+
+declare global {
+  interface Window {
+    __district?: DistrictHooks;
+  }
+}
+
+const NORTH = 0;
 
 async function hasWebGL(page: Page) {
   return page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
 }
 
-async function startDriving(page: Page, path = '/#/3d') {
+/** Open the district, skip the opening reveal, dismiss the welcome card, and wait for the car to land. */
+async function startDriving(page: Page, path = '/?e2e#/3d') {
   await page.goto(path);
   test.skip(!(await hasWebGL(page)), 'This headless browser has no WebGL; the quick-view test covers the fallback.');
   await expect(page.locator('canvas')).toBeVisible();
+  await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
+  await page.keyboard.press('KeyQ'); // any key skips the reveal
   await page.getByRole('button', { name: 'Start driving' }).click();
 }
 
-test('quick view renders every section and the résumé downloads as a PDF', async ({ page, request }) => {
+async function place(page: Page, x: number, z: number, heading: number) {
+  await page.evaluate(([x, z, h]) => window.__district!.place(x, z, h), [x, z, heading] as const);
+  await page.waitForTimeout(600); // settle on the suspension
+}
+
+const events = (page: Page) => page.evaluate(() => [...window.__district!.events]);
+
+function collectErrors(page: Page): ConsoleMessage[] {
+  const errors: ConsoleMessage[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m));
+  return errors;
+}
+
+test('quick view renders every section, downloads no 3D assets, and the résumé is a PDF', async ({ page, request }) => {
+  const requested: string[] = [];
+  page.on('request', (r) => requested.push(r.url()));
   await page.goto('/#/basic');
-  await expect(page.getByRole('heading', { level: 1, name: 'Your Name' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Apu Islam' })).toBeVisible();
   for (const name of ['Experience', 'Research', 'Projects', 'Education', 'Contact']) {
     await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
   }
+  await page.waitForLoadState('networkidle');
+  expect(requested.filter((url) => /\.glb|\.wasm|\/audio\//.test(url))).toEqual([]);
+
   const resume = await request.get('/resume.pdf');
   expect(resume.ok()).toBe(true);
   expect(resume.headers()['content-type']).toContain('pdf');
   expect((await resume.body()).subarray(0, 5).toString()).toBe('%PDF-');
 });
 
-test('drive from the spawn point into the Career zone, press E, read the experience, drive off', async ({ page }) => {
-  const errors: ConsoleMessage[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m));
+test('drive into the Career zone, press E, read MetLife and the dates, drive off', async ({ page }) => {
+  const errors = collectErrors(page);
   await startDriving(page);
+  await place(page, 2.5, 0, NORTH); // on the cross street, facing the tower forecourt
 
-  const prompt = page.getByText('Press E to open the MetLife Career Tower');
+  const prompt = page.locator('.interact-prompt');
   await page.keyboard.down('KeyW');
-  await expect(prompt).toBeVisible({ timeout: 15_000 });
+  await expect(prompt).toContainText('Career Tower', { timeout: 15_000 });
   await page.keyboard.up('KeyW');
+  // Pull up inside the zone, as a driver would, then open it.
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => Math.abs(window.__district!.telemetry.speed) < 0.5, null, { timeout: 5_000 });
+  await page.keyboard.up('Space');
+  await expect(prompt).toContainText('Career Tower');
   await page.keyboard.press('KeyE');
 
   const panel = page.getByRole('dialog', { name: 'Software Engineer – AI' });
   await expect(panel).toBeVisible();
-  await expect(panel.getByText('Nov 2023 – Jul 2026')).toBeVisible();
+  await expect(panel.getByText('MetLife')).toBeVisible();
+  await expect(panel.getByText(/Nov 2023 – Jul 2026/)).toBeVisible();
   await expect(page).toHaveURL(/#\/3d\/experience$/);
   await page.waitForTimeout(1500); // let the camera settle on the tower
   await page.screenshot({ path: 'test-results/career-panel.png' });
@@ -52,12 +89,50 @@ test('drive from the spawn point into the Career zone, press E, read the experie
   expect(errors.map((e) => e.text())).toEqual([]);
 });
 
+test('driving through the pond splashes and leaves wet tracks', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  await place(page, -35, 14, NORTH); // south shore, facing across the pond
+
+  await page.keyboard.down('KeyW');
+  await expect.poll(() => events(page), { timeout: 10_000 }).toContain('splash');
+  await expect.poll(() => events(page), { timeout: 10_000 }).toContain('waterExit');
+  await page.keyboard.up('KeyW');
+  expect(await events(page)).toContain('waterEnter');
+
+  // Out of the water with wet tires, the track mesh is drawn.
+  const wet = await page.evaluate(() => {
+    let tracks = false;
+    window.__district!.r3f.scene.traverse((o) => {
+      const mesh = o as { isInstancedMesh?: boolean; count?: number; visible: boolean };
+      if (mesh.isInstancedMesh && mesh.count === 160 && mesh.visible) tracks = true;
+    });
+    return { tracks, wet: window.__district!.telemetry.wet };
+  });
+  expect(wet.wet).toBeGreaterThan(0);
+  expect(wet.tracks).toBe(true);
+  await page.screenshot({ path: 'test-results/pond.png' });
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('the cone slalom reacts to the car with impact events', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  await place(page, 0, 50, NORTH); // just south of the slalom on the cross street
+
+  await page.keyboard.down('KeyW');
+  await expect.poll(async () => (await events(page)).filter((e) => e === 'impact').length, { timeout: 10_000 }).toBeGreaterThan(0);
+  await page.keyboard.up('KeyW');
+  await page.screenshot({ path: 'test-results/cones.png' });
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
 test('fast travel and the conventional portfolio keep your place', async ({ page }) => {
   await startDriving(page);
   await page.getByRole('button', { name: 'Menu' }).click();
-  await page.getByRole('navigation', { name: 'Fast travel' }).getByRole('button', { name: 'AI Research Tower' }).click();
+  await page.getByRole('navigation', { name: 'Fast travel' }).getByRole('button', { name: 'Research kiosk' }).click();
   await expect(page.getByRole('dialog', { name: 'Research & publications' })).toBeVisible();
-  await expect(page.getByText('Press E to open')).toBeHidden(); // prompt stays hidden while the panel is open
+  await expect(page.locator('.interact-prompt')).toBeHidden(); // prompt stays hidden while the panel is open
 
   await page.getByRole('button', { name: 'Quick view' }).click();
   const section = page.getByRole('region', { name: 'Research', exact: true });
@@ -65,4 +140,32 @@ test('fast travel and the conventional portfolio keep your place', async ({ page
   await expect(section).toBeInViewport();
   await expect(page.locator('canvas')).toHaveCount(0);
   await expect(page).toHaveURL(/#\/basic\/research$/);
+});
+
+test.describe('frame rate at 1440×900, DPR 2', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+
+  test('samples five seconds of driving and reports the average fps', async ({ page }, info) => {
+    await startDriving(page);
+    await page.keyboard.down('KeyW');
+    const fps = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let frames = 0;
+          const start = performance.now();
+          const tick = () => {
+            frames++;
+            if (performance.now() - start < 5000) requestAnimationFrame(tick);
+            else resolve((frames * 1000) / (performance.now() - start));
+          };
+          requestAnimationFrame(tick);
+        }),
+    );
+    await page.keyboard.up('KeyW');
+    // Headless Chrome renders WebGL in software, so this is a report, not the 60 fps acceptance check (that is
+    // measured on real hardware); the test only guards against the loop stalling.
+    info.annotations.push({ type: 'fps', description: `${fps.toFixed(1)} fps (headless, software WebGL)` });
+    console.log(`[fps] ${fps.toFixed(1)} fps at 1440×900 DPR 2 (headless)`);
+    expect(fps).toBeGreaterThan(1);
+  });
 });
