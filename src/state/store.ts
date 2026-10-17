@@ -22,6 +22,8 @@ export interface PortfolioState {
   travel: boolean;
   /** 3D view: the tower whose entrance zone the car is currently inside. */
   nearTower: Exclude<Section, 'about'> | null;
+  /** 3D view: the opening camera reveal is playing (driving input and the welcome card wait). */
+  revealing: boolean;
   /** How the URL should record the latest change. */
   historyMode: 'push' | 'replace';
   /** Set when a keyboard/menu navigation should move focus into the info panel. */
@@ -41,6 +43,7 @@ export interface PortfolioState {
   dismissNotice(): void;
   setHovered(id: string | null): void;
   setNearTower(section: Exclude<Section, 'about'> | null): void;
+  setRevealing(revealing: boolean): void;
 }
 
 let transitionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -57,6 +60,7 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
   navToken: 0,
   travel: true,
   nearTower: null,
+  revealing: false,
   historyMode: 'replace',
   focusPanel: false,
   hovered: null,
@@ -153,5 +157,9 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
 
   setNearTower: (nearTower) => {
     if (get().nearTower !== nearTower) set({ nearTower });
+  },
+
+  setRevealing: (revealing) => {
+    if (get().revealing !== revealing) set({ revealing });
   },
 }));
