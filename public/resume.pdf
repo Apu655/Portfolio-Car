@@ -1,0 +1,54 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1521 >>
+stream
+BT
+/F2 22 Tf 1 0 0 1 56 730 Tm (Your Name) Tj
+/F1 12 Tf 1 0 0 1 56 710 Tm (Research Engineer - Gamification & Interactive Systems) Tj
+/F1 10 Tf 1 0 0 1 56 692 Tm (you@example.com  |  github.com/your-handle  |  linkedin.com/in/your-handle) Tj
+/F2 14 Tf 1 0 0 1 56 648 Tm (Experience) Tj
+/F2 11 Tf 1 0 0 1 56 629 Tm (Lead Research Engineer, Placeholder Labs \(Sep 2024 - Present\)) Tj
+/F1 10 Tf 1 0 0 1 56 611 Tm (Set the research roadmap for adaptive game-based learning.) Tj
+/F2 11 Tf 1 0 0 1 56 592 Tm (Senior Engineer, Gamification, Placeholder Tech Co. \(Apr 2022 - Aug 2024\)) Tj
+/F1 10 Tf 1 0 0 1 56 574 Tm (Led a 6-person team; raised 30-day retention by 12% across 3 products.) Tj
+/F2 11 Tf 1 0 0 1 56 555 Tm (Software Engineer, Placeholder Games Studio \(Jul 2020 - Mar 2022\)) Tj
+/F1 10 Tf 1 0 0 1 56 537 Tm (Shipped a seasonal progression system used by 1M+ players.) Tj
+/F2 11 Tf 1 0 0 1 56 518 Tm (Research Assistant, Placeholder University HCI Lab \(Sep 2018 - Jun 2020\)) Tj
+/F1 10 Tf 1 0 0 1 56 500 Tm (Ran 4 controlled studies with 300+ participants.) Tj
+/F2 14 Tf 1 0 0 1 56 456 Tm (Selected Publications) Tj
+/F1 10 Tf 1 0 0 1 56 438 Tm (Placeholder: Reward Schedules and Persistence in Learning Games \(2020\)) Tj
+/F1 10 Tf 1 0 0 1 56 420 Tm (Placeholder: Designing for Ethical Engagement \(2023\)) Tj
+/F1 10 Tf 1 0 0 1 56 402 Tm (Placeholder: Adaptive Quests for Self-Paced Learners \(2025, preprint\)) Tj
+/F1 9 Tf 1 0 0 1 56 363 Tm (PLACEHOLDER RESUME - replace public/resume.pdf with your own.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000001824 00000 n 
+0000001894 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+1969
+%%EOF
