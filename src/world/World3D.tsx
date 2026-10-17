@@ -4,6 +4,7 @@ import { Physics } from '@react-three/rapier';
 import { usePortfolio } from '../state/store';
 import { LoadingScreen } from '../ui/LoadingScreen';
 import { WorldLabels } from '../ui/WorldLabels';
+import { AudioDriver } from './audio/AudioDriver';
 import { ChaseCamera } from './camera/ChaseCamera';
 import { Lighting } from './lighting/Lighting';
 import { PostFx } from './lighting/PostFx';
@@ -82,6 +83,7 @@ export default function World3D() {
             {settings.postProcessing && <PostFx />}
             <LabelProjector />
           </Suspense>
+          <AudioDriver />
           <TierWatch coarse={coarse} onDrop={() => setTier((t) => lowerTier(t))} />
         </Canvas>
       </div>

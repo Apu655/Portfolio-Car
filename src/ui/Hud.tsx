@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { profile } from '../content/portfolio';
 import { usePortfolio } from '../state/store';
+import { AudioControls } from './AudioControls';
 import { DayDial } from './DayDial';
 import { NAV_MENU_ID, NavMenu } from './NavMenu';
 import { TOWER_NAMES } from './PanelContent';
@@ -164,6 +165,7 @@ export function Hud() {
         </div>
         <div className="hud__actions">
           <DayDial />
+          <AudioControls />
           <button type="button" ref={menuButton} aria-expanded={menuOpen} aria-controls={NAV_MENU_ID} onClick={() => setMenuOpen(!menuOpen)}>
             Menu
           </button>

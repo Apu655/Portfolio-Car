@@ -5,3 +5,6 @@ export const lightingState = {
   /** In-world hours since midnight. */
   hours: 12,
 };
+
+/** Whether the name billboard's letters are flickering right now (its buzz plays only then). */
+export const billboardState = { flickering: false };

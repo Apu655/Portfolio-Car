@@ -251,3 +251,30 @@ describe('heads-up display', () => {
     expect(screen.getByRole('button', { name: 'Start driving' })).toBeInTheDocument();
   });
 });
+
+describe('sound controls (AE4)', () => {
+  it('says sound starts when you drive, and a mute survives a reload', async () => {
+    const { useAudioSettings } = await import('./world/audio/settings');
+    const user = start();
+    useAudioSettings.getState().reload();
+    const mute = screen.getByRole('button', { name: 'Mute sound' });
+    expect(mute).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText('Sound starts when you drive')).toBeInTheDocument();
+
+    await user.click(mute);
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toHaveAttribute('aria-pressed', 'true');
+
+    // A reload re-reads the saved setting (start() clears storage, so simulate the reload directly).
+    const saved = window.localStorage.getItem('portfolio.audio');
+    act(() => useAudioSettings.setState({ muted: false }));
+    window.localStorage.setItem('portfolio.audio', saved!);
+    act(() => useAudioSettings.getState().reload());
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('has a volume slider in a popover', async () => {
+    const user = start();
+    await user.click(screen.getByRole('button', { name: 'Volume' }));
+    expect(screen.getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
+  });
+});

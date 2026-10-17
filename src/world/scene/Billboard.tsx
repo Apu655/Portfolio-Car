@@ -4,13 +4,11 @@ import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
 import { BILLBOARD } from '../district/layout';
 import { BillboardFlicker } from '../lighting/billboardFlicker';
-import { lightingState } from '../lighting/state';
+import { billboardState, lightingState } from '../lighting/state';
 import { MODEL_URLS, enableShadows, useModel } from './District';
 
 const LETTERS = BILLBOARD.text.replace(/\s/g, '').length;
 
-/** Shared with the audio layer: hum while the bulbs flicker. */
-export const billboardState = { flickering: false };
 
 /** The APU ISLAM bulb sign: letters strike on unevenly when the city appears, then glow (brighter at night). */
 export function Billboard() {
