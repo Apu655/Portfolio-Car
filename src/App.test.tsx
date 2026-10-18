@@ -319,3 +319,28 @@ describe('controls card (fixed camera)', () => {
     }
   });
 });
+
+describe('district map', () => {
+  it('has a lettered marker per section that travels there', async () => {
+    const user = start('#/3d');
+    const map = screen.getByRole('navigation', { name: 'District map' });
+    for (const name of ['Work experience (W)', 'Research (R)', 'Projects (P)', 'Education (E)', 'Contact (C)']) {
+      expect(within(map).getByRole('button', { name: `Travel to ${name}` })).toBeInTheDocument();
+    }
+    await user.click(within(map).getByRole('button', { name: 'Travel to Research (R)' }));
+    expect(screen.getByRole('dialog', { name: 'Research & publications' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/3d/research');
+    expect(usePortfolio.getState().travel).toBe(true);
+  });
+
+  it('N enlarges and shrinks the map', async () => {
+    const user = start('#/3d');
+    const toggle = screen.getByRole('button', { name: 'Enlarge the map' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard('n');
+    expect(screen.getByRole('button', { name: 'Shrink the map' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Research')).toBeInTheDocument();
+    await user.keyboard('n');
+    expect(screen.getByRole('button', { name: 'Enlarge the map' })).toBeInTheDocument();
+  });
+});

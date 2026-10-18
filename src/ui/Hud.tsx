@@ -3,6 +3,7 @@ import { profile } from '../content/portfolio';
 import { usePortfolio } from '../state/store';
 import { AudioControls } from './AudioControls';
 import { DayDial } from './DayDial';
+import { Minimap } from './Minimap';
 import { NAV_MENU_ID, NavMenu } from './NavMenu';
 import { TOWER_NAMES } from './PanelContent';
 import { TouchControls, useCoarsePointer } from './TouchControls';
@@ -25,6 +26,8 @@ function ControlsList({ touch }: { touch: boolean }) {
         <dd>Push toward where you want to drive</dd>
         <dt>Pinch</dt>
         <dd>Zoom in and out</dd>
+        <dt>Map letters</dt>
+        <dd>Tap one to go there</dd>
         <dt>Interact</dt>
         <dd>Open a stop when you’re in its glowing zone</dd>
         <dt>Recover</dt>
@@ -64,6 +67,10 @@ function ControlsList({ touch }: { touch: boolean }) {
       <dd>Fast travel menu</dd>
       <dt>Scroll</dt>
       <dd>Zoom in and out</dd>
+      <dt>
+        <kbd>N</kbd>
+      </dt>
+      <dd>Enlarge the map; click a letter to go there</dd>
       <dt>Click a building</dt>
       <dd>Fast travel there</dd>
     </dl>
@@ -184,6 +191,7 @@ export function Hud() {
       <NavMenu />
       {revealing ? <RevealHint /> : <WelcomeCard touch={touch} />}
       <InteractPrompt touch={touch} />
+      {!revealing && <Minimap />}
       {touch && !revealing && <TouchControls />}
     </div>
   );

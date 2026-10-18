@@ -103,7 +103,8 @@ export function Car() {
     if (!chassis || !v) return;
     const dt = w.timestep;
     const state = usePortfolio.getState();
-    const touch = { ...stickToDrive(touchStick, headingOf(chassis)), handbrake: touchInput.handbrake };
+    const heading = headingOf(chassis);
+    const touch = { ...stickToDrive(touchStick, heading), handbrake: touchInput.handbrake };
     let input = combineInputs(readKeyboardInput(keys.current), touch);
     const anyInput = input.throttle !== 0 || input.steer !== 0 || input.handbrake;
     if (state.revealing) inputArmed.current = false;
@@ -150,6 +151,7 @@ export function Car() {
     telemetry.slip = Math.min(1, side / 900);
     telemetry.wheelsOnGround = onGround;
     telemetry.position = [p.x, p.y, p.z];
+    telemetry.heading = heading;
     for (const [slot, wheel] of [[0, 2], [1, 3]] as const) {
       const contact = v.wheelIsInContact(wheel) ? v.wheelContactPoint(wheel) : null;
       telemetry.rearContacts[slot] = contact ? [contact.x, contact.y, contact.z] : null;

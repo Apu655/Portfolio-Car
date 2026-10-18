@@ -52,6 +52,8 @@ export interface Telemetry {
   /** Number of wheels touching the ground or water floor. */
   wheelsOnGround: number;
   position: Vec3;
+  /** Car heading (radians; 0 faces north, positive turns left). */
+  heading: number;
   /** Where the left and right rear tires touch the surface, or null while that wheel is in the air. */
   rearContacts: [Vec3 | null, Vec3 | null];
 }
@@ -67,5 +69,6 @@ export const telemetry: Telemetry = {
   inWater: false,
   wheelsOnGround: 0,
   position: [0, 0, 0],
+  heading: 0,
   rearContacts: [null, null],
 };
