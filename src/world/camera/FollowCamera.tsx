@@ -3,7 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
 import { carRefs } from '../carRef';
-import { zoneFor } from '../district/layout';
+import { ROADSIDE_FRAME, zoneFor } from '../district/layout';
+import { boardFor } from '../roadside';
 import { telemetry } from '../events';
 import { clampZoom, framing, shouldSnap, ZOOM } from './framing';
 import { arrivalBlend, REVEAL_SECONDS } from './reveal';
@@ -115,8 +116,11 @@ export function FollowCamera({ revealing, onRevealDone }: { revealing: boolean; 
     // An open panel eases the camera toward its stop and in a little (R8); reduced motion moves at once (R15).
     const section = state.panelOpen && state.selection && state.selection.section !== 'about' ? state.selection.section : null;
     panelBlend.current = state.reducedMotion ? (section ? 1 : 0) : damp(panelBlend.current, section ? 1 : 0, 2.2, dt);
+    // An item opened in place from its roadside billboard frames that board rather than the section's stop (KTD5).
+    const board = section && !state.travel ? boardFor(state.selection) : undefined;
     const zone = section ? zoneFor(section) : null;
-    const panel = zone ? { focus: [zone.focus[0], zone.focus[2]] as [number, number], height: zone.focus[1], blend: THREE.MathUtils.smoothstep(panelBlend.current, 0, 1) } : undefined;
+    const focus = board ? { at: board.position, height: ROADSIDE_FRAME.centerY } : zone ? { at: [zone.focus[0], zone.focus[2]] as [number, number], height: zone.focus[1] } : null;
+    const panel = focus ? { focus: focus.at, height: focus.height, blend: THREE.MathUtils.smoothstep(panelBlend.current, 0, 1) } : undefined;
 
     const shot = framing({
       follow: follow.current.toArray() as [number, number, number],

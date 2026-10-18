@@ -1121,8 +1121,8 @@ kbd {
   color: var(--text);
 }
 
-/* Captions under the nearest gate's screens. */
-.gate-captions {
+/* The caption card under the nearest roadside billboard. */
+.roadside-captions {
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -1130,15 +1130,15 @@ kbd {
   z-index: 30;
 }
 
-.gate-caption {
+.roadside-caption {
   position: absolute;
   top: 0;
   left: 0;
   width: min(300px, 60vw);
   will-change: transform;
   display: grid;
-  gap: 0.35rem;
-  padding: 0.4rem;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
   border-radius: 10px;
   background: rgba(8, 10, 26, 0.82);
   border: 1px solid var(--border);
@@ -1146,44 +1146,96 @@ kbd {
   font-size: 0.78rem;
   line-height: 1.3;
   pointer-events: auto;
-  cursor: pointer;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .gate-caption {
+  .roadside-caption {
     transition: opacity 200ms;
   }
 }
 
-.gate-caption__row {
-  display: grid;
-  gap: 0.1rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: 7px;
-}
-
-.gate-caption__row:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.gate-caption__row + .gate-caption__row {
-  border-top: 1px solid var(--border);
-}
-
-.gate-caption strong,
-.gate-caption span {
+.roadside-caption__open {
+  all: unset;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
-.gate-caption strong {
-  font-size: 0.85rem;
+.roadside-caption__open:hover,
+.roadside-caption__open:focus-visible {
+  text-decoration: underline;
 }
 
-.gate-caption span {
+.roadside-caption__open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.roadside-caption__subtitle {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.roadside-caption__line {
   color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* The SeCAREly robot's speech bubble, pinned above its head. */
+.robot-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(280px, 64vw);
+  will-change: transform;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 14px;
+  background: rgba(8, 10, 26, 0.88);
+  border: 1px solid rgba(89, 195, 214, 0.6);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.3;
+  pointer-events: auto;
+}
+
+.robot-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  border-right: inherit;
+  border-bottom: inherit;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.robot-bubble.is-beside::after {
+  left: auto;
+  right: -8px;
+  top: 30%;
+  bottom: auto;
+  transform: rotate(-45deg);
+}
+
+.robot-bubble__hello {
+  color: #59c3d6;
+  font-weight: 700;
+}
+
+.robot-bubble__hint {
+  color: var(--text-muted);
+  font-size: 0.72rem;
 }
 
 /* Corner minimap: the district as the camera shows it, with lettered travel markers. */

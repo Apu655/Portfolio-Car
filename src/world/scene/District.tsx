@@ -11,6 +11,7 @@ export const MODEL_URLS = {
   district: '/models/district.glb',
   tower: '/models/career_tower.glb',
   kiosks: '/models/kiosks.glb',
+  landmarks: '/models/landmarks.glb',
   billboard: '/models/billboard.glb',
   buildings: '/models/buildings.glb',
   props: '/models/props.glb',

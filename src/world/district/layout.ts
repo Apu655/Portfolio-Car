@@ -230,8 +230,6 @@ export const GATE_FRAME = {
   pillarHeight: 9.4,
   beamBottom: 6.2,
   beamTop: 9.4,
-  /** Screens lean back (top away from the road) so the high fixed camera sees them nearly face-on. */
-  screen: { width: 5.2, height: 2.9, centerY: 7.8, offsetX: 2.85, z: 0.95, tilt: (32 * Math.PI) / 180 },
   header: { width: 5.4, height: 1.3, centerY: 10.35, z: 0.45, tilt: (18 * Math.PI) / 180 },
 } as const;
 

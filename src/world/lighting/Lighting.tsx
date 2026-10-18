@@ -15,6 +15,11 @@ export const NIGHT_GLOW: Array<[string, number, number]> = [
   ['tower_crown_glow', 0.1, 1.6],
   ['kiosk_glow_', 0.5, 2.4],
   ['gate_lantern', 0.2, 4],
+  ['roadside_lamp', 0.3, 3],
+  ['robot_eye', 1, 2.5],
+  ['robot_screen', 0.8, 2],
+  ['hall_window_lit', 0.05, 1.6],
+  ['campus_window_lit', 0.05, 1.5],
 ];
 
 const SHADOW_HALF = 60;

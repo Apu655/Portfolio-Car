@@ -15,7 +15,7 @@ export interface WorldLabel {
 
 /** One tag per stop (the Career Tower, the SeCAREly robot, Projects Hall, Campus, and the Contact kiosk), over its zone. */
 export const WORLD_LABELS: WorldLabel[] = ZONES.map((zone) => ({
-  id: zone.section,
+  id: labelIdFor(zoneSelection(zone)),
   text: zone.name,
   position: [zone.center[0], 6.5, zone.center[1]],
   selection: zoneSelection(zone),

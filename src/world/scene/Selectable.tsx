@@ -5,7 +5,7 @@ import { usePortfolio } from '../../state/store';
 import { labelIdFor } from '../labels';
 
 /** Pixels the pointer may move between press and release and still count as a click (not a camera drag). */
-const CLICK_TOLERANCE = 6;
+export const CLICK_TOLERANCE = 6;
 
 /** Wraps a landmark so hovering highlights its label and clicking or tapping fast-travels there. */
 export function Selectable({ selection, children }: { selection: Selection; children: ReactNode }) {

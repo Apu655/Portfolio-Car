@@ -35,7 +35,7 @@ export function OcclusionFade() {
       ...blockingOccluders(eye, [x - fx, y, z - fz]),
     ]);
     for (const [key, target] of dissolveTargets) {
-      // Several parts can share one volume: "gate-research#screens" follows "gate-research".
+      // Several parts can share one volume: "gate-research#header" follows "gate-research".
       const volume = key.split('#')[0];
       target.fade.value = THREE.MathUtils.damp(target.fade.value, blocking.has(volume) ? 1 : 0, FADE_RESPONSE, dt);
       if (target.fade.value < 0.002) target.fade.value = 0;

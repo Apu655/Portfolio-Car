@@ -18,8 +18,11 @@ import { LabelProjector } from './scene/LabelProjector';
 import { Props } from './scene/Props';
 import { Footballs } from './scene/Footballs';
 import { SectionGates } from './scene/SectionGates';
-import { GateCaptionProjector } from './scene/GateCaptionProjector';
-import { GateCaptions } from '../ui/GateCaptions';
+import { Landmarks } from './scene/Landmarks';
+import { RoadsideBillboards } from './scene/RoadsideBillboards';
+import { RoadsideCaptionProjector } from './scene/RoadsideCaptionProjector';
+import { RoadsideCaption } from '../ui/RoadsideCaption';
+import { RobotBubble } from '../ui/RobotBubble';
 import { Water } from './scene/Water';
 import { installTestHooks } from './testHooks';
 import { VIEW } from './district/layout';
@@ -87,7 +90,9 @@ export default function World3D() {
             <Water />
             <Billboard />
             <SectionGates />
-            <GateCaptionProjector />
+            <RoadsideBillboards detail={tier === 'low' ? 'low' : 'high'} />
+            <RoadsideCaptionProjector />
+            <Landmarks />
             <FollowCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
             <OcclusionFade />
             {settings.postProcessing && <PostFx />}
@@ -98,7 +103,8 @@ export default function World3D() {
         </Canvas>
       </div>
       <WorldLabels />
-      <GateCaptions />
+      <RoadsideCaption />
+      <RobotBubble />
       <LoadingScreen />
     </>
   );
