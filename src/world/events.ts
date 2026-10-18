@@ -14,8 +14,7 @@ export type GameEvent =
   | { type: 'waterExit' }
   | { type: 'zoneEnter'; section: TowerSection }
   | { type: 'zoneExit'; section: TowerSection }
-  | { type: 'recover' }
-  | { type: 'ui'; sound: 'open' | 'close' | 'hover' | 'toggle' };
+  | { type: 'recover' };
 
 export type GameEventType = GameEvent['type'];
 type Handler<T extends GameEventType> = (event: Extract<GameEvent, { type: T }>) => void;
@@ -53,6 +52,8 @@ export interface Telemetry {
   /** Number of wheels touching the ground or water floor. */
   wheelsOnGround: number;
   position: Vec3;
+  /** Where the left and right rear tires touch the surface, or null while that wheel is in the air. */
+  rearContacts: [Vec3 | null, Vec3 | null];
 }
 
 export const telemetry: Telemetry = {
@@ -66,4 +67,5 @@ export const telemetry: Telemetry = {
   inWater: false,
   wheelsOnGround: 0,
   position: [0, 0, 0],
+  rearContacts: [null, null],
 };

@@ -22,7 +22,7 @@ const CAMERA = {
   lookResponse: 10,
 } as const;
 
-const damp = (current: number, target: number, lambda: number, dt: number) => target + (current - target) * Math.exp(-lambda * dt);
+const { damp } = THREE.MathUtils;
 const dampAngle = (current: number, target: number, lambda: number, dt: number) =>
   current + Math.atan2(Math.sin(target - current), Math.cos(target - current)) * (1 - Math.exp(-lambda * dt));
 

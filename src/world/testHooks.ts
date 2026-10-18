@@ -16,16 +16,22 @@ export interface DistrictHooks {
 
 const RECORDED: GameEventType[] = ['impact', 'splash', 'waterEnter', 'waterExit', 'zoneEnter', 'zoneExit', 'recover'];
 
+/** One recording for the page's lifetime, shared by every Canvas the visitor opens. */
+const events: GameEventType[] = [];
+let recording = false;
+
 export function installTestHooks(state: RootState): void {
   if (!import.meta.env.DEV && !/[?&]e2e\b/.test(window.location.search)) return;
-  const hooks: DistrictHooks = {
+  if (!recording) {
+    RECORDED.forEach((type) => on(type, () => events.push(type)));
+    recording = true;
+  }
+  (window as Window & { __district?: DistrictHooks }).__district = {
     r3f: state,
     telemetry,
-    events: [],
+    events,
     place: (x, z, heading) => {
       if (carRefs.body) placeChassis(carRefs.body, [x, z], heading);
     },
   };
-  RECORDED.forEach((type) => on(type, () => hooks.events.push(type)));
-  (window as Window & { __district?: DistrictHooks }).__district = hooks;
 }

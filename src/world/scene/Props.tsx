@@ -11,7 +11,7 @@ import {
 import * as THREE from 'three';
 import { PROPS, type PropPlacement } from '../district/layout';
 import { emit } from '../events';
-import { impactIntensity, MIN_IMPACT, PROP_SPECS, shouldReset } from '../physics/props';
+import { impactIntensity, impactThreshold, MIN_IMPACT, PROP_SPECS, shouldReset } from '../physics/props';
 import { MODEL_URLS, enableShadows, useModel } from './District';
 
 /** Minimum seconds between impact sounds from the same object. */
@@ -79,9 +79,20 @@ export function Props() {
     emit({ type: 'impact', material: spec.material, intensity, position: [p.x, p.y, p.z], source: `${kind}-${body.handle}` });
   };
 
-  // Start everything asleep so the stacks don't jitter before the car arrives.
+  // Start everything asleep so the stacks don't jitter before the car arrives, and let Rapier drop resting and
+  // sliding contacts natively (below the impact threshold they would only be discarded in JavaScript).
   useEffect(() => {
-    const timer = setTimeout(() => rapier.world.forEachRigidBody((body) => tagOf(body) && body.sleep()), 300);
+    const timer = setTimeout(
+      () =>
+        rapier.world.forEachRigidBody((body) => {
+          const tag = tagOf(body);
+          if (!tag) return;
+          const threshold = impactThreshold(PROP_SPECS[PROPS[tag.prop].kind].mass);
+          for (let i = 0; i < body.numColliders(); i++) body.collider(i).setContactForceEventThreshold(threshold);
+          body.sleep();
+        }),
+      300,
+    );
     return () => clearTimeout(timer);
   }, [rapier]);
 

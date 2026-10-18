@@ -27,6 +27,11 @@ const FULL_IMPACT_FORCE_PER_KG = 900;
 /** Below this, contacts are resting or sliding, not impacts. */
 export const MIN_IMPACT = 0.04;
 
+/** Smallest contact force (N) on a prop of `mass` that counts as an impact; Rapier drops weaker contacts natively. */
+export function impactThreshold(mass: number): number {
+  return mass * FULL_IMPACT_FORCE_PER_KG * MIN_IMPACT;
+}
+
 /** 0..1 impact strength from a contact's peak force, normalized by the prop's mass. */
 export function impactIntensity(maxForce: number, mass: number): number {
   return Math.min(1, maxForce / (mass * FULL_IMPACT_FORCE_PER_KG));

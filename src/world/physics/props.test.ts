@@ -1,7 +1,7 @@
 // Covers AE1 on the real Rapier engine, plus impact strength and the reset rule.
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PROPS } from '../district/layout';
-import { impactIntensity, PROP_SPECS, shouldReset } from './props';
+import { impactIntensity, impactThreshold, MIN_IMPACT, PROP_SPECS, shouldReset } from './props';
 import { applyDrive, createChassis, createVehicle, headingQuat, type DriveState } from './vehicle';
 
 beforeAll(async () => {
@@ -76,6 +76,10 @@ describe('impacts', () => {
       return Math.hypot(p.x, p.z + 10);
     };
     expect(distance('cone')).toBeGreaterThan(distance('crate'));
+  });
+
+  it('the native event threshold matches the smallest counted impact', () => {
+    expect(impactIntensity(impactThreshold(20), 20)).toBeCloseTo(MIN_IMPACT, 6);
   });
 
   it('impact strength rises with force and is normalized by mass', () => {

@@ -70,6 +70,7 @@ test('drive into the Career zone, press E, read MetLife and the dates, drive off
   await page.waitForFunction(() => Math.abs(window.__district!.telemetry.speed) < 0.5, null, { timeout: 5_000 });
   await page.keyboard.up('Space');
   await expect(prompt).toContainText('Career Tower');
+  const before = await page.evaluate(() => [...window.__district!.telemetry.position]);
   await page.keyboard.press('KeyE');
 
   const panel = page.getByRole('dialog', { name: 'Software Engineer – AI' });
@@ -78,6 +79,9 @@ test('drive into the Career zone, press E, read MetLife and the dates, drive off
   await expect(panel.getByText(/Nov 2023 – Jul 2026/)).toBeVisible();
   await expect(page).toHaveURL(/#\/3d\/experience$/);
   await page.waitForTimeout(1500); // let the camera settle on the tower
+  // E opens the panel where the car stands; it must not jump to the parking spot.
+  const after = await page.evaluate(() => [...window.__district!.telemetry.position]);
+  expect(Math.hypot(after[0] - before[0], after[2] - before[2])).toBeLessThan(0.5);
   await page.screenshot({ path: 'test-results/career-panel.png' });
 
   // A fresh press of W closes the panel and drives on.

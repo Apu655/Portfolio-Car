@@ -1,6 +1,7 @@
 // The physics car: a Rapier raycast vehicle on a dynamic chassis (KTD1). Plain functions over Rapier objects,
 // shared by the R3F component and the headless tests so handling is tested on the real physics engine.
 import type RAPIER from '@dimforge/rapier3d-compat';
+import { MathUtils } from 'three';
 import type { DriveInput } from '../drive/input';
 
 type Rapier = typeof RAPIER;
@@ -110,8 +111,6 @@ export function forwardSpeed(vehicle: Controller): number {
   return -vehicle.currentVehicleSpeed();
 }
 
-const damp = (current: number, target: number, lambda: number, dt: number) => target + (current - target) * Math.exp(-lambda * dt);
-
 /**
  * Translate player input into engine force, brakes, and steering for one physics step.
  * S brakes while moving forward, then reverses; W does the mirror when rolling backward.
@@ -129,7 +128,7 @@ export function applyDrive(vehicle: Controller, input: DriveInput, state: DriveS
     if (speed > 0.5) brake = t.brakeForce * -input.throttle;
     else engine = t.reverseForce * -input.throttle * Math.max(0, 1 + speed / t.reverseMaxSpeed);
   }
-  const steer = damp(state.steer, input.steer, t.steerResponse, dt);
+  const steer = MathUtils.damp(state.steer, input.steer, t.steerResponse, dt);
   const angle = (steer * t.maxSteer) / (1 + Math.abs(speed) / t.steerFalloffSpeed);
   for (let i = 0; i < 4; i++) {
     const front = i < 2;

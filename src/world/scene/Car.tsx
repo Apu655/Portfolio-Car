@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody, useBeforePhysicsStep, useRapier, type RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
@@ -147,6 +147,10 @@ export function Car() {
     telemetry.slip = Math.min(1, side / 900);
     telemetry.wheelsOnGround = onGround;
     telemetry.position = [p.x, p.y, p.z];
+    for (const [slot, wheel] of [[0, 2], [1, 3]] as const) {
+      const contact = v.wheelIsInContact(wheel) ? v.wheelContactPoint(wheel) : null;
+      telemetry.rearContacts[slot] = contact ? [contact.x, contact.y, contact.z] : null;
+    }
     if (wet.entered) emit({ type: 'waterEnter', speed: Math.abs(speed) });
     if (wet.exited) emit({ type: 'waterExit' });
     if (wet.splash) emit({ type: 'splash', intensity: wet.splash.intensity, position: wet.splash.position });
@@ -182,7 +186,9 @@ export function Car() {
     for (const light of headlights.current) if (light) light.intensity = night * 90;
   });
 
-  const spawn = destinationFor(usePortfolio.getState().selection?.section) ?? SPAWN;
+  // Initial pose only. react-three-rapier re-applies changed position/rotation props to the body, so these must
+  // stay fixed after mount; fast travel moves the car through placeChassis instead.
+  const [spawn] = useState(() => destinationFor(usePortfolio.getState().selection?.section) ?? SPAWN);
   return (
     <RigidBody
       ref={body}

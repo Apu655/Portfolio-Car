@@ -65,7 +65,6 @@ export class AudioEngine {
       }),
       on('recover', () => this.oneShot('recover', 0.5, null, 0.8, (out, when) => whoosh(this.ctx!, out, when))),
       on('zoneEnter', () => this.ui('zone')),
-      on('ui', (e) => this.ui(e.sound)),
     ];
     const unsubscribe = useAudioSettings.subscribe(() => this.applySettings());
     return () => {

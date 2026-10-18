@@ -5,7 +5,6 @@ import { carRefs } from '../carRef';
 import { POND } from '../district/layout';
 import { on, telemetry, type Vec3 } from '../events';
 import { lightingState } from '../lighting/state';
-import { CAR_TUNING } from '../physics/vehicle';
 
 const RIPPLES = 16;
 const RIPPLE_LIFE = 2.4;
@@ -14,6 +13,8 @@ const TRACKS = 160;
 const TRACK_LIFE = 4;
 const TRACK_SPACING = 0.45;
 const SURFACE_Y = -0.04;
+/** Height of a track print above the tire's contact point, so it never sinks into the surface. */
+const TRACK_LIFT = 0.015;
 
 const waterVertex = /* glsl */ `
   varying vec2 vLocal;
@@ -97,6 +98,7 @@ export function Water() {
     [],
   );
   const nextParticle = useRef(0);
+  const dropsActive = useRef(false);
   const dropGeometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PARTICLES * 3), 3));
@@ -136,9 +138,10 @@ export function Water() {
   const tracks = useRef<THREE.InstancedMesh>(null);
   const trackAge = useMemo(() => new Float32Array(TRACKS).fill(TRACK_LIFE), []);
   const nextTrack = useRef(0);
+  const tracksActive = useRef(false);
   const lastTrack = useRef(new THREE.Vector3(1e9, 0, 0));
   const scratch = useMemo(
-    () => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), flat: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(), p: new THREE.Vector3(), o: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1), c: new THREE.Color() }),
+    () => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), flat: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(), p: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1), c: new THREE.Color() }),
     [],
   );
 
@@ -159,6 +162,7 @@ export function Water() {
       pt.v.set(Math.cos(angle) * spread + (v?.x ?? 0) * 0.3, 2 + Math.random() * 3.5 * intensity, Math.sin(angle) * spread + (v?.z ?? 0) * 0.3);
       pt.max = pt.life = 0.6 + Math.random() * 0.5;
     }
+    dropsActive.current = true;
   };
 
   useEffect(() => {
@@ -185,28 +189,34 @@ export function Water() {
     uniforms.uTime.value = time.current;
     uniforms.uNight.value = lightingState.night;
 
-    // Droplets: simple ballistic flight, fading out as they fall back.
-    const pos = dropGeometry.attributes.position as THREE.BufferAttribute;
-    const alpha = dropGeometry.attributes.alpha as THREE.BufferAttribute;
-    for (let i = 0; i < PARTICLES; i++) {
-      const pt = particles[i];
-      if (pt.life > 0) {
-        pt.life -= dt;
-        pt.v.y -= 9.81 * dt;
-        pt.p.addScaledVector(pt.v, dt);
-        if (pt.p.y < SURFACE_Y) pt.life = 0;
+    // Droplets: simple ballistic flight, fading out as they fall back. Idle pools cost nothing.
+    if (dropsActive.current) {
+      const pos = dropGeometry.attributes.position as THREE.BufferAttribute;
+      const alpha = dropGeometry.attributes.alpha as THREE.BufferAttribute;
+      let alive = 0;
+      for (let i = 0; i < PARTICLES; i++) {
+        const pt = particles[i];
+        if (pt.life > 0) {
+          pt.life -= dt;
+          pt.v.y -= 9.81 * dt;
+          pt.p.addScaledVector(pt.v, dt);
+          if (pt.p.y < SURFACE_Y) pt.life = 0;
+          if (pt.life > 0) alive++;
+        }
+        pos.setXYZ(i, pt.p.x, pt.p.y, pt.p.z);
+        alpha.setX(i, pt.life > 0 ? Math.min(1, pt.life / pt.max + 0.2) * 0.85 : 0);
       }
-      pos.setXYZ(i, pt.p.x, pt.p.y, pt.p.z);
-      alpha.setX(i, pt.life > 0 ? Math.min(1, pt.life / pt.max + 0.2) * 0.85 : 0);
+      pos.needsUpdate = true;
+      alpha.needsUpdate = true;
+      dropsActive.current = alive > 0; // this frame uploaded the all-faded state; stop until the next splash
     }
-    pos.needsUpdate = true;
-    alpha.needsUpdate = true;
 
-    // Wet tracks: dark tire prints dropped behind the rear wheels for a few seconds after leaving the pond.
+    // Wet tracks: dark tire prints under the rear tires for a few seconds after leaving the pond, laid on
+    // whatever surface the tires touch (grass, road, curb, plaza).
     const mesh = tracks.current;
     const body = carRefs.body;
     if (!mesh) return;
-    if (body && telemetry.wet > 0 && !telemetry.inWater && telemetry.wheelsOnGround > 0) {
+    if (body && telemetry.wet > 0 && !telemetry.inWater) {
       const t = body.translation();
       scratch.p.set(t.x, 0, t.z);
       if (scratch.p.distanceTo(lastTrack.current) > TRACK_SPACING) {
@@ -215,28 +225,36 @@ export function Water() {
         scratch.q.set(r.x, r.y, r.z, r.w);
         const heading = scratch.e.setFromQuaternion(scratch.q, 'YXZ').y;
         scratch.flat.setFromEuler(scratch.e.set(-Math.PI / 2, heading, 0, 'YXZ'));
-        for (const side of [-1, 1]) {
-          scratch.o.set(side * CAR_TUNING.wheelX, 0, CAR_TUNING.wheelZ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, heading);
+        let laid = false;
+        for (const contact of telemetry.rearContacts) {
+          if (!contact) continue;
           const i = nextTrack.current;
           nextTrack.current = (nextTrack.current + 1) % TRACKS;
           trackAge[i] = TRACK_LIFE - telemetry.wet; // older the drier the tires are
-          scratch.s.set(t.x + scratch.o.x, 0.012, t.z + scratch.o.z);
+          scratch.s.set(contact[0], contact[1] + TRACK_LIFT, contact[2]);
           scratch.m.compose(scratch.s, scratch.flat, scratch.one);
           mesh.setMatrixAt(i, scratch.m);
+          laid = true;
         }
-        mesh.instanceMatrix.needsUpdate = true;
+        if (laid) {
+          mesh.instanceMatrix.needsUpdate = true;
+          tracksActive.current = true;
+        }
       }
     }
+    if (!tracksActive.current) return;
     let visible = false;
     for (let i = 0; i < TRACKS; i++) {
+      if (trackAge[i] >= TRACK_LIFE) continue;
       trackAge[i] = Math.min(TRACK_LIFE, trackAge[i] + dt);
       const fade = 1 - trackAge[i] / TRACK_LIFE;
-      if (fade > 0) visible = true;
+      visible = true;
       const shade = 1 - 0.4 * fade; // multiplied into the road: darker where the tires were wetter
       mesh.setColorAt(i, scratch.c.setRGB(shade, shade, shade));
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.visible = visible;
+    tracksActive.current = visible;
   });
 
   return (
@@ -246,9 +264,9 @@ export function Water() {
         <shaderMaterial vertexShader={waterVertex} fragmentShader={waterFragment} uniforms={uniforms} transparent depthWrite={false} />
       </mesh>
       <points geometry={dropGeometry} material={dropMaterial} frustumCulled={false} />
-      <instancedMesh ref={tracks} args={[undefined, undefined, TRACKS]} frustumCulled={false} renderOrder={2}>
+      <instancedMesh ref={tracks} args={[undefined, undefined, TRACKS]} frustumCulled={false} renderOrder={2} visible={false}>
         <planeGeometry args={[0.32, 0.5]} />
-        <meshBasicMaterial color="#ffffff" transparent depthWrite={false} blending={THREE.MultiplyBlending} premultipliedAlpha />
+        <meshBasicMaterial color="#ffffff" transparent depthWrite={false} blending={THREE.MultiplyBlending} premultipliedAlpha polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} />
       </instancedMesh>
     </group>
   );
