@@ -79,8 +79,8 @@ const MATERIALS: Record<PropMaterial, MaterialVoice> = {
 
 const TIER = {
   tap: { gain: 0.22, decay: 0.7, grains: 0 },
-  knock: { gain: 0.5, decay: 1, grains: 1 },
-  crash: { gain: 0.85, decay: 1.4, grains: 4 },
+  knock: { gain: 0.5, decay: 1, grains: 2 },
+  crash: { gain: 0.85, decay: 1.4, grains: 6 },
 } as const;
 
 const DETUNE = [1, 0.91, 1.08];
@@ -93,6 +93,12 @@ export function impact(ctx: BaseAudioContext, out: AudioNode, material: PropMate
   const ring = voice.ring * t.decay * (0.9 + variant * 0.08);
   voice.partials.forEach((f, i) => tone(ctx, out, when, voice.wave, f * pitch, (t.gain * 0.5) / (i + 1), ring / (1 + i * 0.4), f * pitch * 0.97));
   noiseBurst(ctx, out, when, voice.noise.type, voice.noise.freq * pitch, voice.noise.q, t.gain * 0.4, voice.noise.decay * t.decay);
+  // Brick and wood break: a sharp crack on top of the knock, so a hard hit sounds like something giving way.
+  if (tier !== 'tap' && (material === 'brick' || material === 'wood')) {
+    const crack = material === 'brick' ? 3200 : 2400;
+    noiseBurst(ctx, out, when, 'highpass', crack * pitch, 0.9, t.gain * 0.55, 0.035);
+    noiseBurst(ctx, out, when + 0.012, 'bandpass', crack * 0.55 * pitch, 2, t.gain * 0.3, 0.05);
+  }
   // Crashes scatter extra debris grains just after the hit (bricks tumbling, crate slats rattling).
   for (let g = 0; g < t.grains; g++) {
     const at = when + 0.04 + Math.random() * 0.25;
@@ -118,6 +124,33 @@ export function splash(ctx: BaseAudioContext, out: AudioNode, intensity: number,
   source.stop(when + decay + 0.05);
   tone(ctx, out, when, 'sine', 220 - intensity * 60, 0.12 + intensity * 0.2, 0.12 + intensity * 0.1, 80);
   return decay;
+}
+
+/**
+ * The car plunging into water: a deep "whump" as the wheels hit, a bright sheet of spray thrown up, then a few
+ * droplets pattering back down. Louder and longer at speed. Returns the seconds it rings.
+ */
+export function plunge(ctx: BaseAudioContext, out: AudioNode, intensity: number, when: number): number {
+  tone(ctx, out, when, 'sine', 130, 0.35 + intensity * 0.35, 0.28 + intensity * 0.12, 48);
+  const decay = 0.45 + intensity * 0.6;
+  const source = noiseSource(ctx);
+  const band = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  band.type = 'bandpass';
+  band.Q.value = 0.7;
+  band.frequency.setValueAtTime(900, when);
+  band.frequency.exponentialRampToValueAtTime(3800 + intensity * 1800, when + 0.08);
+  band.frequency.exponentialRampToValueAtTime(1200, when + decay);
+  envelope(gain.gain, when + 0.01, 0.3 + intensity * 0.5, decay, 0.02);
+  source.connect(band).connect(gain).connect(out);
+  source.start(when, Math.random() * 0.5);
+  source.stop(when + decay + 0.1);
+  const drops = 3 + Math.round(intensity * 5);
+  for (let i = 0; i < drops; i++) {
+    const at = when + 0.25 + Math.random() * (0.35 + intensity * 0.4);
+    tone(ctx, out, at, 'sine', 900 + Math.random() * 900, 0.05 + Math.random() * 0.05, 0.05, 1600 + Math.random() * 900);
+  }
+  return decay + 0.4;
 }
 
 /** Small interface sounds: soft and short. */

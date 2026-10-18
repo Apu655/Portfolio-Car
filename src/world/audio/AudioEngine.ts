@@ -10,10 +10,11 @@ import { EngineSynth } from './engineSynth';
 import { MusicBed } from './musicBed';
 import { SampleBank } from './sampleBank';
 import { useAudioSettings } from './settings';
-import { impact, splash, uiSound, whoosh } from './synth';
+import { impact, noiseSource, plunge, splash, uiSound, whoosh } from './synth';
 import { VoiceLimiter } from './voiceLimiter';
 
 export interface Listener {
+  /** Where sounds are heard from: the car, so what happens around it plays at its true level. */
   position: Vec3;
   /** Unit vector to the listener's right, for stereo placement. */
   right: Vec3;
@@ -24,6 +25,11 @@ export type UiSound = 'open' | 'close' | 'hover' | 'toggle' | 'zone';
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 /** Distance (m) at which a sound is at half level. */
 const HALF_DISTANCE = 14;
+
+/** A one-shot's level at the listener: `level` faded by distance. */
+export function voiceGain(level: number, source: Vec3, listener: Vec3): number {
+  return level * attenuation(Math.hypot(source[0] - listener[0], source[1] - listener[1], source[2] - listener[2]));
+}
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -36,6 +42,8 @@ export class AudioEngine {
   private engine: EngineSynth | null = null;
   private bed: AmbienceBed | null = null;
   private hum: GainNode | null = null;
+  /** The hiss of water around the wheels while the car wades. */
+  private wade: GainNode | null = null;
   private humSource: OscillatorNode | null = null;
   private readonly limiter = new VoiceLimiter();
   private readonly bank = new SampleBank();
@@ -64,7 +72,7 @@ export class AudioEngine {
       on('splash', (e) => this.oneShot('splash', 0.18, e.position, 0.5 + e.intensity * 0.5, (out, when) => splash(this.ctx!, out, e.intensity, when))),
       on('waterEnter', (e) => {
         const intensity = Math.min(1, 0.3 + e.speed / 11);
-        this.oneShot('waterEnter', 0.5, telemetry.position, 1, (out, when) => splash(this.ctx!, out, intensity, when));
+        this.oneShot('waterEnter', 0.5, telemetry.position, 1, (out, when) => plunge(this.ctx!, out, intensity, when), 1.2);
       }),
       on('recover', () => this.oneShot('recover', 0.5, null, 0.8, (out, when) => whoosh(this.ctx!, out, when))),
       on('zoneEnter', () => this.ui('zone')),
@@ -142,6 +150,17 @@ export class AudioEngine {
     buzz.start();
     this.humSource = buzz;
 
+    // Wading: filtered noise that follows the car's speed while it is in the water.
+    const water = noiseSource(ctx, true);
+    const wash = ctx.createBiquadFilter();
+    wash.type = 'bandpass';
+    wash.frequency.value = 1100;
+    wash.Q.value = 0.6;
+    this.wade = ctx.createGain();
+    this.wade.gain.value = 0;
+    water.connect(wash).connect(this.wade).connect(this.effects);
+    water.start();
+
     this.applySettings(true);
   }
 
@@ -155,7 +174,7 @@ export class AudioEngine {
     this.musicBus?.gain.setTargetAtTime(music ? 0.9 : 0, this.ctx.currentTime, immediate ? 2 : 0.8);
   }
 
-  /** Called every frame with the camera as the listener. */
+  /** Called every frame with the listener at the car, facing the way the camera does. */
   update(listener: Listener): void {
     this.listener = listener;
     const ctx = this.ctx;
@@ -163,6 +182,10 @@ export class AudioEngine {
     this.engine?.update(telemetry);
     this.bed?.update(lightingState.hours);
     this.music?.update(lightingState.night);
+    if (this.wade) {
+      const level = telemetry.inWater ? 0.06 + Math.min(1, Math.abs(telemetry.speed) / 12) * 0.32 : 0;
+      this.wade.gain.setTargetAtTime(level, ctx.currentTime, telemetry.inWater ? 0.08 : 0.25);
+    }
     if (this.hum) {
       const [x, , z] = BILLBOARD.position;
       const d = Math.hypot(listener.position[0] - x, listener.position[2] - z);
@@ -194,7 +217,7 @@ export class AudioEngine {
       const dy = position[1] - this.listener.position[1];
       const dz = position[2] - this.listener.position[2];
       const d = Math.hypot(dx, dy, dz);
-      gain *= attenuation(d);
+      gain = voiceGain(level, position, this.listener.position);
       const r = this.listener.right;
       pan = d > 0.01 ? Math.max(-1, Math.min(1, (dx * r[0] + dy * r[1] + dz * r[2]) / d)) * 0.8 : 0;
     }
