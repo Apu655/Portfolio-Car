@@ -253,6 +253,8 @@ export const BUILDINGS: StaticPlacement[] = (() => {
 
 /** Footprint half-size of each backdrop building variant, before per-instance scale. */
 export const BUILDING_HALF = [7, 8, 6.5, 7.5];
+/** Roof height of each backdrop building variant including its cap or crown, before per-instance scale. */
+export const BUILDING_HEIGHT = [31, 46, 26, 37];
 
 /**
  * The fixed camera view (KTD1 of the isometric camera plan): the camera always looks toward the north-east, from

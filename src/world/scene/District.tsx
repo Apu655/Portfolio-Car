@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { CuboidCollider, CylinderCollider, RigidBody, TrimeshCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
-import { BUILDINGS, TOWER } from '../district/layout';
+import { BUILDINGS, KIOSKS, TOWER } from '../district/layout';
+import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
 
 export const MODEL_URLS = {
   district: '/models/district.glb',
@@ -86,8 +87,22 @@ export function District() {
       clone.scale.setScalar(b.scale);
       return clone;
     });
-    return { scene, ground, groundShape, backdrop };
+
+    // Everything tall enough to hide the car can dissolve while it does (R3). Building clones and kiosks share
+    // materials, so they get their own copies; the tower is a single instance and is patched in place.
+    const dissolvables: Array<[string, Dissolvable]> = [
+      ['tower', makeDissolvable(tower.scene, { cloneMaterials: false })],
+      ['gate', makeDissolvable(kiosks.scene.getObjectByName('city_gate')!, { cloneMaterials: true })],
+      ...KIOSKS.map((k): [string, Dissolvable] => [`kiosk-${k.section}`, makeDissolvable(kiosks.scene.getObjectByName(`kiosk_${k.section}`)!, { cloneMaterials: true })]),
+      ...backdrop.map((b, i): [string, Dissolvable] => [`building-${i}`, makeDissolvable(b, { cloneMaterials: true })]),
+    ];
+    return { scene, ground, groundShape, backdrop, dissolvables };
   }, [district, tower, kiosks, buildings]);
+
+  useEffect(() => {
+    parts.dissolvables.forEach(([key, d]) => dissolveTargets.set(key, d));
+    return () => parts.dissolvables.forEach(([key]) => dissolveTargets.delete(key));
+  }, [parts]);
 
   return (
     <>

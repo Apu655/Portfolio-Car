@@ -1,10 +1,11 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
 import { BILLBOARD } from '../district/layout';
 import { BillboardFlicker } from '../lighting/billboardFlicker';
 import { billboardState, lightingState } from '../lighting/state';
+import { dissolveTargets, makeDissolvable } from './dissolve';
 import { MODEL_URLS, enableShadows, useModel } from './District';
 
 const LETTERS = BILLBOARD.text.replace(/\s/g, '').length;
@@ -36,6 +37,16 @@ export function Billboard() {
       return { material: material!, base: material!.color.clone() };
     });
   }, [gltf]);
+
+  // The sign can hide the car from the fixed camera, so it dissolves too (R3). Patched in place after the
+  // per-letter materials exist, so the flicker keeps driving the materials actually on screen.
+  const dissolve = useMemo(() => makeDissolvable(gltf.scene, { cloneMaterials: false }), [gltf, letters]);
+  useEffect(() => {
+    dissolveTargets.set('billboard', dissolve);
+    return () => {
+      dissolveTargets.delete('billboard');
+    };
+  }, [dissolve]);
 
   const front = useMemo(() => {
     const r = BILLBOARD.rotationY;

@@ -6,6 +6,7 @@ import { LoadingScreen } from '../ui/LoadingScreen';
 import { WorldLabels } from '../ui/WorldLabels';
 import { AudioDriver } from './audio/AudioDriver';
 import { FollowCamera } from './camera/FollowCamera';
+import { OcclusionFade } from './camera/OcclusionFade';
 import { framing, ZOOM } from './camera/framing';
 import { Lighting } from './lighting/Lighting';
 import { PostFx } from './lighting/PostFx';
@@ -81,6 +82,7 @@ export default function World3D() {
             <Water />
             <Billboard />
             <FollowCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
+            <OcclusionFade />
             {settings.postProcessing && <PostFx />}
             <LabelProjector />
           </Suspense>
