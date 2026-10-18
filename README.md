@@ -3,12 +3,18 @@
 An interactive 3D portfolio. Drive a classic coupe through a golden-hour miniature district, seen from a fixed
 isometric-style camera high above, and discover the career inside it:
 
-- **Career Tower (W)**: work experience at MetLife, George Mason University, Sysonex Development, and BRAC
-  University. An original contemporary corporate tower.
-- **Research (R), Projects (P), Education (E), and Contact (C) kiosks**: signposts along the north promenade.
-- **Section gates**: a gate across each stop's approach road, with a lettered header and two screens that cycle
-  through that section's logos, project screenshots, titles, and one-liners. A readable caption appears under
-  the gate as you drive up; click a screen or caption to open that item.
+Each section has its own road, entered through a gate with a lettered sign. Past the gate, its items stand
+beside the road on big billboards, and a sharp caption card repeats the nearest one; click a board or its card
+to open that item where you are.
+
+- **Work (W), the cross street**: a billboard per role (MetLife, Sysonex Development, George Mason University,
+  BRAC University), leading to the Career Tower.
+- **Research (R), the east road**: a friendly robot stands in the road just past the gate. Drive up and it
+  greets you with SeCAREly; press **E** to read the paper. A billboard per paper lines the rest of the road.
+- **Projects (P), the north road**: the Projects Hall, its front showing every project's screenshot. Pull up
+  and press **E** for the full project list.
+- **Education (E), the west road**: billboards for Monash and BRAC, then a small campus with a clock tower.
+- **Contact (C), the south road** just west of the start: a "say hello" billboard and the Contact kiosk.
 - **The APU ISLAM billboard**: flickers to life when you arrive, then glows steadily.
 - **The corner map**: the district drawn the way the camera shows it, with a letter per section to travel to.
 - **The football pitch** near the start: eight balls carrying the tech stack to knock around with the car.
@@ -71,7 +77,8 @@ and colliders all come from it, so Blender and the runtime always agree.
 | `Esc` | Close the menu, then the panel (pressing `W` again also closes the panel and drives off) |
 | `M` | Fast-travel menu (keyboard and screen-reader friendly) |
 | `N` | Enlarge or shrink the corner map |
-| Click or tap the Career Tower or a kiosk | Fast travel there and open its panel |
+| Click or tap the Career Tower, robot, hall, campus, or kiosk | Fast travel there and open its panel |
+| Click or tap a roadside billboard | Open that item where you are |
 | Scroll · pinch | Zoom in and out (the camera angle itself is fixed) |
 | Touch | Push the joystick toward where you want to drive; Brake, Recover, and an "Open" button inside a zone |
 | Any key or tap during the opening fly-over | Skip it |
@@ -100,7 +107,7 @@ src/
   world/events.ts        event bus and telemetry: physics publishes, audio, effects, and HUD listen
   ui/                    HUD, day dial, sound controls, welcome card, E prompt, menu, info panel, touch controls
   basic/BasicSite.tsx    the conventional quick view
-assets/blender/          Python model scripts (car, tower, district, kiosks, billboard, buildings, props)
+assets/blender/          Python model scripts (car, tower, district, gates and kiosk, landmarks, billboard, buildings, props)
 e2e/                     Playwright smoke tests (drive to the tower, pond, cones, fast travel, fps report)
 ```
 
@@ -118,7 +125,9 @@ e2e/                     Playwright smoke tests (drive to the tower, pond, cones
 
 ## Replacing placeholders
 
-1. Edit `src/content/portfolio.ts`. The gate screens and captions read from it through `src/content/showcase.ts`.
+1. Edit `src/content/portfolio.ts`. The billboards and captions read from it through `src/content/showcase.ts`;
+   a new role, paper, or degree also needs a billboard slot in `ROADSIDE_BILLBOARDS` (`src/world/district/layout.ts`),
+   and a test fails until it has one.
 2. Add the LinkedIn and Google Scholar URLs to `profile.contact` (the CV names them without links).
 3. Replace `public/resume.pdf` with your résumé.
 4. For new screenshots or logos, put them in `assets/My Items/`, list them in `scripts/build-showcase.mjs`, and run it.
@@ -127,6 +136,6 @@ e2e/                     Playwright smoke tests (drive to the tower, pond, cones
 
 - All sounds and the music are synthesized in the browser; recorded CC0 samples can replace individual sounds
   later (list them in `public/audio/LICENSES.md`).
-- Only the Career Tower is a full landmark in this slice; Research, Projects, Education, and Contact are kiosks with gates.
+- Billboards open by click, tap, or their caption card; only the stops (tower, robot, hall, campus, kiosk) answer to **E**.
 - No traffic or pedestrians.
 - The quick view renders in the browser, so search engines may index it poorly (no prerendering yet).

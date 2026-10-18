@@ -1,4 +1,5 @@
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test';
+import { papers, projects } from '../src/content/portfolio';
 import type { DistrictHooks } from '../src/world/testHooks';
 
 // Real-browser smoke tests against the production build (see playwright.config.ts). `?e2e` turns on the
@@ -192,21 +193,71 @@ test('clicking the Career Tower travels there and opens its panel', async ({ pag
   await expect(page).toHaveURL(/#\/3d\/experience$/); // R9
 });
 
-test('a gate screen opens the item it is showing', async ({ page }) => {
+/** Screen pixel of a world point, as the current camera sees it. */
+async function screenPoint(page: Page, x: number, y: number, z: number): Promise<[number, number]> {
+  return page.evaluate(([x, y, z]) => {
+    const r = window.__district!.r3f;
+    const v = r.camera.position.clone().set(x, y, z).project(r.camera);
+    return [((v.x + 1) / 2) * r.size.width, ((1 - v.y) / 2) * r.size.height] as [number, number];
+  }, [x, y, z] as const);
+}
+
+test('a roadside billboard opens its paper where the car stands (AE2)', async ({ page }) => {
   const errors = collectErrors(page);
   await startDriving(page);
-  await place(page, -3, -52, -Math.PI / 2); // on the north road, west of the Projects gate
+  await place(page, 72.5, -4, NORTH); // on the east road, level with the third paper billboard
   await page.waitForTimeout(800);
-  // The Projects gate's left screen: gate centre (7, -55), facing west; screen 2.85 m left, 0.95 m out, 7.8 m up.
-  const [x, y] = await page.evaluate(() => {
-    const r = window.__district!.r3f;
-    const v = r.camera.position.clone().set(6.05, 7.8, -57.85).project(r.camera);
-    return [((v.x + 1) / 2) * r.size.width, ((1 - v.y) / 2) * r.size.height];
-  });
+  // The card under the nearest board repeats it in sharp type.
+  const paper = papers.filter((p) => p.id !== 'secarely')[2];
+  await expect(page.locator('.roadside-caption')).toContainText(paper.title.slice(0, 30));
+  await page.screenshot({ path: 'test-results/research-road.png' });
+  const before = await page.evaluate(() => [...window.__district!.telemetry.position]);
+  // The board's face centre: slot (81, -4), 5.4 m up.
+  const [x, y] = await screenPoint(page, 81, 5.4, -4);
   await page.mouse.click(x, y);
-  await expect(page.getByRole('dialog', { name: 'Projects' })).toBeVisible();
-  await expect(page).toHaveURL(/#\/3d\/projects\/[a-z-]+$/);
+  await expect(page.getByRole('dialog', { name: 'Research & publications' })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#/3d/research/${paper.id}$`));
+  const after = await page.evaluate(() => [...window.__district!.telemetry.position]);
+  expect(Math.hypot(after[0] - before[0], after[2] - before[2])).toBeLessThan(1); // opened in place
   expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('the robot greets the car with SeCAREly, and E opens the paper (AE1)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  await place(page, 67.5, 34, NORTH); // just south of the Research gate, 12 m from the robot
+  const bubble = page.locator('.robot-bubble');
+  await expect(bubble).toContainText('SeCAREly');
+  await expect(bubble).toContainText('Drive up to chat');
+  await page.screenshot({ path: 'test-results/robot-greeting.png' });
+
+  const prompt = page.locator('.interact-prompt');
+  await page.keyboard.down('KeyW');
+  await expect(prompt).toContainText('SeCAREly robot', { timeout: 10_000 });
+  await page.keyboard.up('KeyW');
+  await page.keyboard.down('KeyS');
+  await page.waitForFunction(() => window.__district!.telemetry.speed < 0.5, null, { timeout: 5_000 });
+  await page.keyboard.up('KeyS');
+  await expect(prompt).toContainText('Press E to talk to the SeCAREly robot');
+  await expect(bubble).toContainText('Press E to learn more');
+  await page.keyboard.press('KeyE');
+  await expect(page.getByRole('dialog', { name: 'Research & publications' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/3d\/research\/secarely$/);
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('map P travels to the Projects Hall, and E lists every project (AE3)', async ({ page }) => {
+  await startDriving(page);
+  await page.getByRole('navigation', { name: 'District map' }).getByRole('button', { name: 'Travel to Projects (P)' }).click();
+  const panel = page.getByRole('dialog', { name: 'Projects' });
+  await expect(panel).toBeVisible();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/projects-hall.png' });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.interact-prompt')).toContainText('Projects Hall');
+  await page.keyboard.press('KeyE');
+  await expect(panel).toBeVisible();
+  for (const p of projects) await expect(panel.getByText(p.name, { exact: true })).toBeVisible();
 });
 
 test('a map letter travels to its section', async ({ page }) => {
@@ -231,7 +282,7 @@ test('the car can knock the tech footballs around', async ({ page }) => {
 test('fast travel and the conventional portfolio keep your place', async ({ page }) => {
   await startDriving(page);
   await page.getByRole('button', { name: 'Menu' }).click();
-  await page.getByRole('navigation', { name: 'Fast travel' }).getByRole('button', { name: 'Research kiosk' }).click();
+  await page.getByRole('navigation', { name: 'Fast travel' }).getByRole('button', { name: 'Research Road' }).click();
   await expect(page.getByRole('dialog', { name: 'Research & publications' })).toBeVisible();
   await expect(page.locator('.interact-prompt')).toBeHidden(); // prompt stays hidden while the panel is open
 
