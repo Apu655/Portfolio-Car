@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { carRefs } from '../carRef';
 import { dayClock } from './clock';
 import { lightingState } from './state';
-import { lightingAt, type RGB } from './timeOfDay';
+import { environmentStale, lightingAt, type RGB } from './timeOfDay';
 
 /** Materials (by name, or name prefix ending in `_`) whose glow follows the night: [day, night] emissive intensity. */
 export const NIGHT_GLOW: Array<[string, number, number]> = [
@@ -41,13 +40,17 @@ uniform vec3 sunColor;
 uniform vec3 sunDirection;
 uniform float night;
 varying vec3 vDirection;
+float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 void main() {
   vec3 d = normalize(vDirection);
   float h = clamp(d.y, 0.0, 1.0);
-  vec3 color = mix(horizon, top, pow(h, 0.5));
+  vec3 color = mix(horizon, top, pow(h, 0.55));
   color = mix(color, horizon * 0.6, clamp(-d.y * 3.0, 0.0, 1.0));
   float s = max(dot(d, normalize(sunDirection)), 0.0);
-  color += sunColor * (pow(s, mix(900.0, 2600.0, night)) * mix(6.0, 1.4, night) + pow(s, 10.0) * mix(0.35, 0.05, night));
+  color += sunColor * (pow(s, mix(900.0, 2600.0, night)) * mix(6.0, 1.4, night) + pow(s, 8.0) * mix(0.35, 0.05, night));
+  // Stars come out with the night, thinning toward the horizon.
+  vec2 cell = floor(vec2(atan(d.z, d.x), d.y) * 260.0);
+  color += vec3(0.9, 0.95, 1.0) * step(0.9975, hash(cell)) * night * smoothstep(0.08, 0.35, d.y) * 1.4;
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -59,7 +62,7 @@ function nightRange(name: string): [number, number] | null {
   return null;
 }
 
-/** Sky, sun, ambient light, fog, reflections, and night glow — all driven by the in-world day clock. */
+/** Sky, sun and moon, ambient light, fog, reflections, and night glow — all driven by the in-world day clock. */
 export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowMapSize: number }) {
   const scene = useThree((s) => s.scene);
   const gl = useThree((s) => s.gl);
@@ -81,12 +84,24 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
   );
   const scratch = useMemo(() => ({ color: new THREE.Color(), focus: new THREE.Vector3() }), []);
 
+  // Reflections come from the time-of-day sky itself (KTD8): a small scene holding the same sky, captured into
+  // an environment map and refreshed when the hour moves on, so glass and paint reflect the hour.
+  const reflections = useMemo(() => {
+    const envScene = new THREE.Scene();
+    const material = new THREE.ShaderMaterial({ uniforms, vertexShader: skyVertex, fragmentShader: skyFragment, side: THREE.BackSide, depthWrite: false });
+    envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), material));
+    return { envScene, pmrem: new THREE.PMREMGenerator(gl), target: null as THREE.WebGLRenderTarget | null, hour: Number.NaN };
+  }, [gl, uniforms]);
+
   useEffect(() => {
-    scene.fog = new THREE.Fog('#c4d6ea', 90, 420);
+    scene.fog = new THREE.FogExp2('#c4d6ea', 0.0024);
     return () => {
       scene.fog = null;
+      scene.environment = null;
+      reflections.target?.dispose();
+      reflections.pmrem.dispose();
     };
-  }, [scene]);
+  }, [scene, reflections]);
 
   useFrame((_, dt) => {
     const hours = dayClock.hours(performance.now());
@@ -100,13 +115,22 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
     uniforms.sunDirection.value.set(...l.sunDirection);
     uniforms.night.value = l.night;
     sky.current?.position.copy(camera.position);
-    (scene.fog as THREE.Fog).color.copy(srgb(l.fogColor, scratch.color));
-    scene.environmentIntensity = l.environmentIntensity;
-    gl.toneMappingExposure = l.exposure;
+    const fog = scene.fog as THREE.FogExp2;
+    fog.color.copy(srgb(l.fogColor, scratch.color));
+    fog.density = l.fogDensity;
+    // Exposure is folded into the light levels, so it reads the same whichever pass does the tone mapping.
+    scene.environmentIntensity = l.environmentIntensity * l.exposure;
+    gl.toneMappingExposure = 1;
     if (hemisphere.current) {
       srgb(l.hemisphereSky, hemisphere.current.color);
       srgb(l.hemisphereGround, hemisphere.current.groundColor);
-      hemisphere.current.intensity = l.hemisphereIntensity;
+      hemisphere.current.intensity = l.hemisphereIntensity * l.exposure;
+    }
+    if (Number.isNaN(reflections.hour) || environmentStale(reflections.hour, hours)) {
+      reflections.target?.dispose();
+      reflections.target = reflections.pmrem.fromScene(reflections.envScene, 0, 0.1, 100);
+      scene.environment = reflections.target.texture;
+      reflections.hour = hours;
     }
     const light = sun.current;
     if (light) {
@@ -114,7 +138,7 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
       carRefs.visual?.getWorldPosition(scratch.focus);
       scratch.focus.set(Math.round(scratch.focus.x), 0, Math.round(scratch.focus.z));
       srgb(l.sunColor, light.color);
-      light.intensity = l.sunIntensity;
+      light.intensity = l.sunIntensity * l.exposure;
       light.position.set(scratch.focus.x + l.sunDirection[0] * 150, l.sunDirection[1] * 150, scratch.focus.z + l.sunDirection[2] * 150);
       light.target.position.copy(scratch.focus);
       light.target.updateMatrixWorld();
@@ -156,13 +180,6 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
         shadow-camera-near={1}
         shadow-camera-far={400}
       />
-      {/* Soft studio panels rendered once for reflections on glass, paint, and brass — no downloads. */}
-      <Environment resolution={128} frames={1}>
-        <Lightformer form="rect" intensity={2.2} color="#dbe8ff" position={[0, 12, 0]} rotation-x={Math.PI / 2} scale={[40, 40, 1]} />
-        <Lightformer form="rect" intensity={1.4} color="#ffe2c0" position={[0, 2, -20]} scale={[40, 3, 1]} />
-        <Lightformer form="rect" intensity={0.8} color="#bcd2ff" position={[-20, 3, 0]} rotation-y={Math.PI / 2} scale={[40, 4, 1]} />
-        <Lightformer form="rect" intensity={0.8} color="#bcd2ff" position={[20, 3, 0]} rotation-y={-Math.PI / 2} scale={[40, 4, 1]} />
-      </Environment>
     </>
   );
 }

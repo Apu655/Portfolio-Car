@@ -3,7 +3,7 @@
 export type RGB = [number, number, number];
 
 export interface Lighting {
-  /** Unit vector pointing toward the sun (or moon at night). */
+  /** Unit vector pointing toward the key light: the sun by day, the moon at night. */
   sunDirection: [number, number, number];
   sunColor: RGB;
   sunIntensity: number;
@@ -13,10 +13,13 @@ export interface Lighting {
   hemisphereGround: RGB;
   hemisphereIntensity: number;
   fogColor: RGB;
+  /** Exponential fog density: far blocks fade into the horizon colour. */
+  fogDensity: number;
   /** Reflections from the environment (glass, car paint). */
   environmentIntensity: number;
   /** 0 by day, 1 at night: drives lit windows, streetlights, headlights, floodlights. */
   night: number;
+  /** Overall brightness, folded into the light intensities. */
   exposure: number;
 }
 
@@ -28,70 +31,94 @@ const hex = (h: string): RGB => [
 
 interface Keyframe extends Omit<Lighting, 'sunDirection'> {
   hour: number;
+  /** Sun azimuth (degrees, 0 = north, 90 = east) and elevation (degrees above the horizon). */
+  azimuth: number;
+  elevation: number;
 }
 
 const key = (
   hour: number,
+  sun: [number, number, string, number],
   sky: [string, string],
-  sun: [string, number],
   hemi: [string, string, number],
-  fog: string,
+  fog: [string, number],
   environmentIntensity: number,
   night: number,
   exposure: number,
 ): Keyframe => ({
   hour,
+  azimuth: sun[0],
+  elevation: sun[1],
+  sunColor: hex(sun[2]),
+  sunIntensity: sun[3],
   skyTop: hex(sky[0]),
   skyHorizon: hex(sky[1]),
-  sunColor: hex(sun[0]),
-  sunIntensity: sun[1],
   hemisphereSky: hex(hemi[0]),
   hemisphereGround: hex(hemi[1]),
   hemisphereIntensity: hemi[2],
-  fogColor: hex(fog),
+  fogColor: hex(fog[0]),
+  fogDensity: fog[1],
   environmentIntensity,
   night,
   exposure,
 });
 
-/** Hand-tuned looks for a day, blended linearly between neighbours (24:00 wraps to 0:00). */
+/** The moonlit night, held from late evening until dawn. */
+const MOONLIT = (hour: number) =>
+  key(hour, [320, 42, '#a9bcff', 0.45], ['#080d22', '#1d2647'], ['#4a5c9e', '#16172a', 0.72], ['#182042', 0.0028], 0.42, 1, 1.25);
+
+/**
+ * The golden-hour miniature city's day (approved look-dev): crisp midday, a warm low sun at golden hour, a
+ * violet blue hour, and a moonlit indigo night. Neighbouring keys blend linearly; 24:00 wraps to 0:00.
+ */
 const KEYFRAMES: Keyframe[] = [
-  key(0, ['#050914', '#141c33'], ['#9db4ff', 0.35], ['#2a3a66', '#0b0d14', 0.35], '#10162a', 0.25, 1, 1.05),
-  key(4.5, ['#060a17', '#18203a'], ['#9db4ff', 0.3], ['#2a3a66', '#0b0d14', 0.35], '#121a30', 0.25, 1, 1.05),
-  key(6, ['#2b3a66', '#f2a07b'], ['#ffb27a', 1.2], ['#7a8cc4', '#3a2c2c', 0.6], '#c79a8a', 0.5, 0.55, 1),
-  key(7.5, ['#5d8fd6', '#ffd9b0'], ['#ffd8a8', 2.1], ['#a9c4ff', '#5a4a3a', 0.65], '#cfd6e0', 0.7, 0.05, 0.95),
-  key(10, ['#3f7fd8', '#bcd8f5'], ['#fff4e6', 2.6], ['#bcd6ff', '#6a5c48', 0.6], '#c4d6ea', 0.75, 0, 0.85),
-  key(14, ['#3a7ad6', '#b8d4f2'], ['#fff6ea', 2.7], ['#bcd6ff', '#6a5c48', 0.6], '#c2d4e8', 0.75, 0, 0.85),
-  key(17, ['#4f7cc2', '#ffd2a1'], ['#ffd29a', 2.4], ['#b0c4f0', '#6a5040', 0.65], '#e2c9ad', 0.75, 0.05, 0.95),
-  key(18.5, ['#3b4a85', '#ff9a6b'], ['#ff9a5c', 1.5], ['#8a90c8', '#4a3030', 0.65], '#d49a84', 0.6, 0.45, 1),
-  // Blue hour: the sun is down, the sky glows deep blue, and the city lights come up.
-  key(19.1, ['#1f3170', '#6d72b4'], ['#8fa6ff', 0.6], ['#5a6ab0', '#2a2238', 0.55], '#4a5288', 0.45, 0.72, 1.05),
-  key(19.75, ['#141c3d', '#4a3a6a'], ['#9db4ff', 0.45], ['#3a4880', '#141018', 0.45], '#262a48', 0.35, 0.9, 1.05),
-  key(21, ['#060b19', '#18203c'], ['#9db4ff', 0.35], ['#2a3a66', '#0b0d14', 0.35], '#11182c', 0.25, 1, 1.05),
+  MOONLIT(0),
+  MOONLIT(4.5),
+  key(6, [95, 4, '#ff9e6b', 1.6], ['#3a4f8f', '#f2b08e'], ['#8a9ad0', '#4a3a34', 0.45], ['#d6a596', 0.0032], 0.45, 0.45, 1.05),
+  key(8.5, [125, 30, '#ffe0b8', 2.8], ['#4a86d6', '#f4d8be'], ['#b6cdf5', '#6b5a48', 0.55], ['#d8dbe0', 0.0026], 0.7, 0, 1),
+  key(13, [165, 58, '#fff3e2', 3.1], ['#3c84de', '#cfe3f5'], ['#c4dcff', '#7f6f54', 0.55], ['#cddfed', 0.0022], 0.8, 0, 1),
+  key(16.5, [225, 30, '#ffd9a6', 3], ['#3f74c6', '#f2d4ae'], ['#b9c8ec', '#7a5f45', 0.55], ['#e3cfb6', 0.0024], 0.75, 0, 1),
+  key(18.2, [252, 13, '#ffb366', 3.8], ['#4268b0', '#ffc896'], ['#e0c3a2', '#7a5536', 0.75], ['#f3cfa8', 0.0016], 0.7, 0.03, 1.32),
+  key(18.7, [257, 4, '#ff8a4a', 2.55], ['#33508f', '#ffa27a'], ['#b8a6b8', '#5a3e34', 0.7], ['#c89a8c', 0.0022], 0.6, 0.3, 1.25),
+  // Blue hour: the sun is down, the sky glows violet-blue, and the city lights come up.
+  key(19.2, [262, -4, '#b8a2d8', 1.1], ['#22346e', '#8f73ab'], ['#6d7cc4', '#2c2234', 0.7], ['#5a4c86', 0.0028], 0.5, 0.72, 1.2),
+  key(20.3, [300, 30, '#a9bcff', 0.5], ['#0e1736', '#2c3566'], ['#4a5fa8', '#1a1a2a', 0.78], ['#1d2650', 0.0028], 0.45, 0.95, 1.25),
+  MOONLIT(21),
+  MOONLIT(23.5),
 ];
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lerpRGB = (a: RGB, b: RGB, t: number): RGB => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+/** Blend two angles (degrees) the short way round. */
+const lerpAngle = (a: number, b: number, t: number) => a + ((((b - a) % 360) + 540) % 360 - 180) * t;
 
 /** Hours since local midnight, with fractions (13:30 → 13.5). */
 export function localHours(date: Date): number {
   return date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
 }
 
+/** Where the moon hangs: high in the north-west, so night shadows fall toward the camera's side. */
+const MOON: [number, number, number] = [-0.55, 0.62, -0.55];
+
 /**
- * Sun above the horizon from about 6:00 to 19:00, highest around 12:30, rising in the east (+X) and setting
- * in the west, slightly south. At night the light comes from a dim, high "moon" instead.
+ * The key light's direction: the sun from its azimuth and elevation (never quite below the horizon, so shadows
+ * stay sensible), handing over smoothly to the moon as night falls (0.5 to 0.7).
  */
-function sunDirection(hours: number, night: number): [number, number, number] {
-  const day = (hours - 6) / 13; // 0 at sunrise, 1 at sunset
-  const angle = Math.PI * Math.min(Math.max(day, 0), 1);
-  const elevation = Math.max(0.12, Math.sin(angle)) * 1.05;
-  const sun: [number, number, number] = [Math.cos(angle), elevation, 0.45];
-  const moon: [number, number, number] = [-0.4, 1, -0.3];
-  const moonWeight = Math.min(1, Math.max(0, (night - 0.5) * 2));
-  const mixed = sun.map((v, i) => lerp(v, moon[i], moonWeight)) as [number, number, number];
+function keyDirection(azimuthDeg: number, elevationDeg: number, night: number): [number, number, number] {
+  const az = (azimuthDeg * Math.PI) / 180;
+  const el = (Math.max(elevationDeg, 5) * Math.PI) / 180;
+  const sun = [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)];
+  const t = Math.min(1, Math.max(0, (night - 0.5) / 0.2));
+  const w = t * t * (3 - 2 * t);
+  const mixed = sun.map((v, i) => lerp(v, MOON[i], w));
   const length = Math.hypot(...mixed);
   return mixed.map((v) => v / length) as [number, number, number];
+}
+
+/** Whether the reflection environment captured at `captured` hours is out of date at `now` (more than 0.2 h). */
+export function environmentStale(captured: number, now: number): boolean {
+  const d = Math.abs(now - captured) % 24;
+  return Math.min(d, 24 - d) > 0.2;
 }
 
 export function lightingAt(hours: number): Lighting {
@@ -104,7 +131,7 @@ export function lightingAt(hours: number): Lighting {
   const t = ((h - a.hour + 24) % 24) / span;
   const night = lerp(a.night, b.night, t);
   return {
-    sunDirection: sunDirection(h, night),
+    sunDirection: keyDirection(lerpAngle(a.azimuth, b.azimuth, t), lerp(a.elevation, b.elevation, t), night),
     sunColor: lerpRGB(a.sunColor, b.sunColor, t),
     sunIntensity: lerp(a.sunIntensity, b.sunIntensity, t),
     skyTop: lerpRGB(a.skyTop, b.skyTop, t),
@@ -113,6 +140,7 @@ export function lightingAt(hours: number): Lighting {
     hemisphereGround: lerpRGB(a.hemisphereGround, b.hemisphereGround, t),
     hemisphereIntensity: lerp(a.hemisphereIntensity, b.hemisphereIntensity, t),
     fogColor: lerpRGB(a.fogColor, b.fogColor, t),
+    fogDensity: lerp(a.fogDensity, b.fogDensity, t),
     environmentIntensity: lerp(a.environmentIntensity, b.environmentIntensity, t),
     night,
     exposure: lerp(a.exposure, b.exposure, t),
