@@ -165,10 +165,10 @@ def build(layout):
         walks.append(kit.box(f"walk_cross{side}", sw, curb, 2 * span, side * (w / 2 + sw / 2), 0, 0, m["sidewalk"], bevel=0.04))
     kit.join(walks, "sidewalks")
 
-    # Paved plazas: tower forecourt, south-east prop plaza, kiosk promenade, billboard lawn path.
+    # Paved plazas (tower forecourt, prop plaza, Projects Hall forecourt), raised to curb height like the sidewalks.
     tower = layout["TOWER"]
     plazas = [
-        kit.box(f"plaza_{p['name']}", p["size"][0], 0.05, p["size"][1], p["center"][0], curb if p["name"] != "kiosks" else 0.0, p["center"][1], m["plaza"])
+        kit.box(f"plaza_{p['name']}", p["size"][0], 0.05, p["size"][1], p["center"][0], curb, p["center"][1], m["plaza"])
         for p in layout["PLAZAS"]
     ]
     kit.join(plazas, "plazas")
