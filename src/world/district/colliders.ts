@@ -2,7 +2,6 @@
 // from the district model) and the physical props (their own bodies).
 import {
   BILLBOARD,
-  BUILDING_HALF,
   BUILDINGS,
   CAMPUS,
   CONTACT_KIOSK,
@@ -105,11 +104,8 @@ export const STATIC_COLLIDERS: StaticCollider[] = [
   }),
   // Forecourt hedges.
   ...[-1, 1].map((side) => box(`hedge-${side}`, PLAZAS[0].center[0], TOWER.center[1] + side * 12.5, 7, 1.05, 0.6)),
-  // Backdrop buildings.
-  ...BUILDINGS.map((b, i) => {
-    const half = BUILDING_HALF[b.variant] * b.scale;
-    return box(`building-${i}`, b.position[0], b.position[2], half, 40, half, b.rotationY);
-  }),
+  // City blocks: each building's footprint, up to its parapet.
+  ...BUILDINGS.map((b, i) => box(`building-${i}`, b.center[0], b.center[1], b.half[0], b.height, b.half[1])),
   // Streetlight poles and tree trunks.
   ...LAMPS.map((l, i) => cylinder(`lamp-${i}`, l.position[0], l.position[2], 0.2, 6.5)),
   ...TREES.map((t, i) => cylinder(`tree-${i}`, t.position[0], t.position[2], 0.28 * t.scale, 3)),

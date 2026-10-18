@@ -3,8 +3,6 @@
 // registers under. The camera-to-car line is tested against these each frame.
 import {
   BILLBOARD,
-  BUILDING_HALF,
-  BUILDING_HEIGHT,
   BUILDINGS,
   CAMPUS,
   CONTACT_KIOSK,
@@ -30,6 +28,10 @@ export interface Occluder {
 const TOWER_TOP = TOWER.height + 9;
 /** The bulb board's top edge and thickness. */
 const BILLBOARD_TOP = 11;
+/** Height above a building's parapet that its rooftop props (water tanks, stair huts, AC units) may reach. */
+export const ROOFTOP_ALLOWANCE = 3;
+/** Room around a building's footprint for its cornice and awnings. */
+const BUILDING_OVERHANG = 0.5;
 
 const box = (key: string, x: number, z: number, hx: number, height: number, hz: number, rotationY = 0): Occluder => ({
   key,
@@ -53,10 +55,9 @@ export const OCCLUDERS: Occluder[] = [
   box('robot', ROBOT.position[0], ROBOT.position[1], ROBOT.radius + 0.3, ROBOT.height + 0.4, ROBOT.radius + 0.3),
   box('projects-hall', PROJECTS_HALL.center[0], PROJECTS_HALL.center[1], PROJECTS_HALL.size[0] / 2, PROJECTS_HALL.height + 1.5, PROJECTS_HALL.size[1] / 2),
   box('campus', CAMPUS.center[0], CAMPUS.center[1], CAMPUS.size[0] / 2, CAMPUS.towerHeight, CAMPUS.size[1] / 2),
-  ...BUILDINGS.map((b, i) => {
-    const half = BUILDING_HALF[b.variant] * b.scale;
-    return box(`building-${i}`, b.position[0], b.position[2], half, BUILDING_HEIGHT[b.variant] * b.scale, half, b.rotationY);
-  }),
+  ...BUILDINGS.map((b, i) =>
+    box(`building-${i}`, b.center[0], b.center[1], b.half[0] + BUILDING_OVERHANG, b.height + ROOFTOP_ALLOWANCE, b.half[1] + BUILDING_OVERHANG),
+  ),
 ];
 
 /** Whether the segment from `a` to `b` passes through the box (slab test in the box's own frame). */

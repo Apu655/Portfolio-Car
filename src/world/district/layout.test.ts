@@ -3,18 +3,22 @@ import { TO_CAMERA } from '../camera/framing';
 import { SHOWCASE } from '../../content/showcase';
 import {
   BILLBOARD,
-  BUILDING_HALF,
   BUILDINGS,
   CAMPUS,
   CONTACT_KIOSK,
+  FLOWER_BEDS,
   FOOTBALLS,
+  GATE_FRAME,
   gatePoint,
+  HEADING,
   LAMPS,
   onRoad,
+  PARK_POCKETS,
   PITCH,
   PLAZAS,
   POND,
   pondDepth,
+  pondNorm,
   PROJECTS_HALL,
   PROPS,
   ROADSIDE_BILLBOARDS,
@@ -31,6 +35,7 @@ import {
   ZONES,
   zoneAt,
   zoneFor,
+  type Building,
   type Vec2,
   type Vec3,
 } from './layout';
@@ -87,6 +92,53 @@ function projectedFace(position: Vec2): { minX: number; maxX: number; minY: numb
     }
   }
   return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
+
+/** Gap between a building's footprint and an axis-aligned rectangle; negative when they overlap. */
+const rectGap = (b: Building, center: Vec2, half: Vec2) =>
+  Math.max(Math.abs(b.center[0] - center[0]) - b.half[0] - half[0], Math.abs(b.center[1] - center[1]) - b.half[1] - half[1]);
+
+/** Distance from a building's footprint to a ground point (0 inside). */
+const pointGap = (b: Building, [x, z]: Vec2) =>
+  Math.hypot(Math.max(Math.abs(x - b.center[0]) - b.half[0], 0), Math.max(Math.abs(z - b.center[1]) - b.half[1], 0));
+
+/** Points covering a building's footprint at most 1 m apart, edges included. */
+function footprintGrid(b: Building): Vec2[] {
+  const nx = Math.ceil(b.half[0] * 2);
+  const nz = Math.ceil(b.half[1] * 2);
+  const points: Vec2[] = [];
+  for (let i = 0; i <= nx; i++) {
+    for (let j = 0; j <= nz; j++) points.push([b.center[0] - b.half[0] + (i / nx) * b.half[0] * 2, b.center[1] - b.half[1] + (j / nz) * b.half[1] * 2]);
+  }
+  return points;
+}
+
+/** A building on the camera side of its road (south or west of it) faces north or east (KTD4). */
+const cameraSide = (b: Building) => Math.abs(b.rotationY - HEADING.north) < 1e-6 || Math.abs(b.rotationY - HEADING.east) < 1e-6;
+
+/** Points along the loop's centerline about `step` apart, each with the outward normal. */
+function loopSamples(step: number): Array<{ at: Vec2; normal: Vec2 }> {
+  const { halfX, halfZ, cornerRadius: r } = ROADS.loop;
+  const ix = halfX - r;
+  const iz = halfZ - r;
+  const out: Array<{ at: Vec2; normal: Vec2 }> = [];
+  const line = (from: Vec2, to: Vec2, normal: Vec2) => {
+    const n = Math.ceil(Math.hypot(to[0] - from[0], to[1] - from[1]) / step);
+    for (let i = 0; i < n; i++) out.push({ at: [from[0] + ((to[0] - from[0]) * i) / n, from[1] + ((to[1] - from[1]) * i) / n], normal });
+  };
+  line([ix, -halfZ], [-ix, -halfZ], [0, -1]);
+  line([-halfX, -iz], [-halfX, iz], [-1, 0]);
+  line([-ix, halfZ], [ix, halfZ], [0, 1]);
+  line([halfX, iz], [halfX, -iz], [1, 0]);
+  for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const n = Math.ceil((r * Math.PI) / 2 / step);
+    for (let i = 0; i < n; i++) {
+      const a = ((i + 0.5) / n) * (Math.PI / 2);
+      const normal: Vec2 = [sx * Math.cos(a), sz * Math.sin(a)];
+      out.push({ at: [sx * ix + normal[0] * r, sz * iz + normal[1] * r], normal });
+    }
+  }
+  return out;
 }
 
 describe('district layout', () => {
@@ -247,10 +299,7 @@ describe('district layout', () => {
         const inside = Math.abs(f.at[0] - p.center[0]) < p.size[0] / 2 + f.half && Math.abs(f.at[1] - p.center[1]) < p.size[1] / 2 + f.half;
         expect(inside, `${f.name} on plaza ${p.name}`).toBe(false);
       }
-      BUILDINGS.forEach((b, i) => {
-        const half = BUILDING_HALF[b.variant] * b.scale + f.half;
-        expect(Math.abs(f.at[0] - b.position[0]) < half && Math.abs(f.at[1] - b.position[2]) < half, `${f.name} vs building-${i}`).toBe(false);
-      });
+      BUILDINGS.forEach((b, i) => expect(pointGap(b, f.at), `${f.name} vs building-${i}`).toBeGreaterThan(f.half));
     }
     for (let i = 0; i < footprints.length; i++) {
       for (let j = i + 1; j < footprints.length; j++) {
@@ -283,5 +332,105 @@ describe('district layout', () => {
     for (const p of PROPS) expect(inside(p.position[0], p.position[2], 1), p.id).toBe(false);
     expect(FOOTBALLS).toHaveLength(8);
     for (const [x, z] of FOOTBALLS) expect(inside(x, z)).toBe(true);
+  });
+});
+
+describe('city blocks (U4)', () => {
+  const { halfX, halfZ } = ROADS.loop;
+  /** Distance from a road's centerline to the back of its sidewalk. */
+  const edge = ROADS.width / 2 + ROADS.sidewalk;
+
+  it('lines the streets with at least 60 buildings, each a valid record', () => {
+    expect(BUILDINGS.length).toBeGreaterThanOrEqual(60);
+    const headings = Object.values(HEADING);
+    for (const [i, b] of BUILDINGS.entries()) {
+      expect(b.half[0] > 0 && b.half[1] > 0 && b.height > 0, `building-${i}`).toBe(true);
+      expect(headings.some((h) => Math.abs(h - b.rotationY) < 1e-6), `building-${i} faces a road`).toBe(true);
+      expect(Number.isInteger(b.palette) && b.palette >= 0, `building-${i} palette`).toBe(true);
+      expect(Number.isInteger(b.variant) && b.variant >= 0, `building-${i} variant`).toBe(true);
+    }
+    // Exported to JSON for Blender.
+    expect(JSON.parse(JSON.stringify(BUILDINGS))).toEqual(BUILDINGS);
+  });
+
+  it('keeps every building off the roads, sidewalks, pond and pitch', () => {
+    const goal = PITCH.goal.depth;
+    BUILDINGS.forEach((b, i) => {
+      for (const [x, z] of footprintGrid(b)) {
+        expect(onRoad(x, z, ROADS.sidewalk), `building-${i} on road at ${x},${z}`).toBe(false);
+        expect(pondNorm(x, z), `building-${i} in the pond`).toBeGreaterThan(1);
+        expect(pondDepth(x, z)).toBe(0);
+      }
+      expect(rectGap(b, PITCH.center, [PITCH.size[0] / 2 + goal, PITCH.size[1] / 2]), `building-${i} on the pitch`).toBeGreaterThan(0);
+    });
+  });
+
+  it('keeps buildings clear of plazas, park pockets, flower beds, props, stops, gates, billboards and landmarks', () => {
+    BUILDINGS.forEach((b, i) => {
+      const name = `building-${i}`;
+      for (const p of PLAZAS) expect(rectGap(b, p.center, [p.size[0] / 2, p.size[1] / 2]), `${name} vs plaza ${p.name}`).toBeGreaterThan(0);
+      for (const p of PARK_POCKETS) expect(rectGap(b, p.center, [p.size[0] / 2, p.size[1] / 2]), `${name} vs pocket ${p.name}`).toBeGreaterThan(0);
+      for (const f of FLOWER_BEDS) expect(rectGap(b, f.center, [f.size[0] / 2, f.size[1] / 2]), `${name} vs bed`).toBeGreaterThan(0);
+      for (const p of PROPS) expect(pointGap(b, [p.position[0], p.position[2]]), `${name} vs ${p.id}`).toBeGreaterThan(1);
+      for (const zone of ZONES) expect(pointGap(b, zone.center), `${name} vs ${zone.name} zone`).toBeGreaterThan(zone.radius);
+      for (const g of SECTION_GATES) {
+        for (const side of [-1, 1]) expect(pointGap(b, gatePoint(g, side * g.halfSpan, 0)), `${name} vs gate ${g.section}`).toBeGreaterThan(GATE_FRAME.pillarHalf * Math.SQRT2);
+      }
+      for (const s of ROADSIDE_SLOTS) expect(pointGap(b, s.position), `${name} vs ${s.key}`).toBeGreaterThan(ROADSIDE_FRAME.width / 2);
+      expect(pointGap(b, [BILLBOARD.position[0], BILLBOARD.position[2]]), `${name} vs name billboard`).toBeGreaterThan(BILLBOARD.width / 2);
+      expect(rectGap(b, TOWER.center, [TOWER.halfSize, TOWER.halfSize]), `${name} vs tower`).toBeGreaterThan(0);
+      expect(rectGap(b, PROJECTS_HALL.center, [PROJECTS_HALL.size[0] / 2, PROJECTS_HALL.size[1] / 2]), `${name} vs hall`).toBeGreaterThan(0);
+      expect(rectGap(b, CAMPUS.center, [CAMPUS.size[0] / 2, CAMPUS.size[1] / 2]), `${name} vs campus`).toBeGreaterThan(0);
+      expect(pointGap(b, CONTACT_KIOSK.position), `${name} vs kiosk`).toBeGreaterThan(1.8);
+      expect(pointGap(b, ROBOT.position), `${name} vs robot`).toBeGreaterThan(ROBOT.radius);
+    });
+    for (let i = 0; i < BUILDINGS.length; i++) {
+      for (let j = i + 1; j < BUILDINGS.length; j++) {
+        expect(rectGap(BUILDINGS[i], BUILDINGS[j].center, BUILDINGS[j].half), `building-${i} vs building-${j}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('reserves park pockets around the pond, the benches and the flower beds', () => {
+    const inPocket = ([x, z]: Vec2) => PARK_POCKETS.some((p) => Math.abs(x - p.center[0]) <= p.size[0] / 2 && Math.abs(z - p.center[1]) <= p.size[1] / 2);
+    expect(inPocket(POND.center)).toBe(true);
+    for (const p of PROPS.filter((q) => q.kind === 'bench')) expect(inPocket([p.position[0], p.position[2]]), p.id).toBe(true);
+    for (const f of FLOWER_BEDS) expect(inPocket(f.center), `bed ${f.center}`).toBe(true);
+  });
+
+  it('stands high-rises only north or east of the loop (KTD4)', () => {
+    const tall = BUILDINGS.filter((b) => b.height > 24);
+    expect(BUILDINGS.filter((b) => b.height >= 40).length).toBeGreaterThan(0);
+    for (const b of tall) {
+      const north = b.center[1] + b.half[1] < -(halfZ + edge);
+      const east = b.center[0] - b.half[0] > halfX + edge;
+      expect(north || east, `${b.height} m at ${b.center}`).toBe(true);
+    }
+  });
+
+  it('caps camera-side rows at 9 m and keeps inner-loop blocks mid-rise (KTD4)', () => {
+    expect(BUILDINGS.filter(cameraSide).length).toBeGreaterThan(0);
+    for (const b of BUILDINGS.filter(cameraSide)) expect(b.height, `camera-side at ${b.center}`).toBeLessThanOrEqual(9);
+    for (const b of BUILDINGS.filter((q) => Math.abs(q.center[0]) < halfX && Math.abs(q.center[1]) < halfZ)) {
+      expect(b.height, `inner block at ${b.center}`).toBeLessThanOrEqual(24);
+    }
+  });
+
+  it('fronts most of the loop with buildings on at least one side (R2)', () => {
+    const samples = loopSamples(1);
+    const fronted = samples.filter(({ at, normal }) =>
+      [-1, 1].some((side) =>
+        Array.from({ length: 8 }, (_, k) => edge + 1 + k).some((d) => {
+          const p: Vec2 = [at[0] + normal[0] * side * d, at[1] + normal[1] * side * d];
+          return BUILDINGS.some((b) => pointGap(b, p) === 0);
+        }),
+      ),
+    );
+    expect(fronted.length / samples.length).toBeGreaterThan(0.5);
+  });
+
+  it('keeps trees and streetlights off the buildings', () => {
+    for (const t of TREES) for (const [i, b] of BUILDINGS.entries()) expect(pointGap(b, [t.position[0], t.position[2]]), `tree vs building-${i}`).toBeGreaterThan(1);
+    for (const l of LAMPS) for (const [i, b] of BUILDINGS.entries()) expect(pointGap(b, [l.position[0], l.position[2]]), `lamp vs building-${i}`).toBeGreaterThan(1);
   });
 });

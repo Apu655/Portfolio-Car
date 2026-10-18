@@ -58,7 +58,7 @@ function trimeshOf(root: THREE.Object3D): { vertices: Float32Array; indices: Uin
   return { vertices: new Float32Array(vertices), indices: new Uint32Array(indices) };
 }
 
-/** Static scenery: ground (trimesh collider), roads, landscaping, tower, Contact kiosk, gates, backdrop buildings. Clicking the tower or the kiosk travels there. */
+/** Static scenery: ground (trimesh collider), roads, landscaping, tower, Contact kiosk, gates, city blocks. Clicking the tower or the kiosk travels there. */
 export function District() {
   const district = useModel(MODEL_URLS.district);
   const tower = useModel(MODEL_URLS.tower);
@@ -81,13 +81,39 @@ export function District() {
     }
     enableShadows(tower.scene);
     enableShadows(kiosks.scene);
+    // Stopgap until the city variants land: each block gets one of today's four models, stretched to fill its
+    // footprint and height. A model is measured once, centered on its footprint and stood on the ground.
+    const fits = new Map<number, { size: THREE.Vector3; center: THREE.Vector3; bottom: number }>();
+    const fitOf = (variant: number) => {
+      let fit = fits.get(variant);
+      if (!fit) {
+        const model = buildings.scene.getObjectByName(`building_${variant}`)!.clone();
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+        model.scale.set(1, 1, 1);
+        const bounds = new THREE.Box3().setFromObject(model);
+        fit = { size: bounds.getSize(new THREE.Vector3()), center: bounds.getCenter(new THREE.Vector3()), bottom: bounds.min.y };
+        fits.set(variant, fit);
+      }
+      return fit;
+    };
     const backdrop = BUILDINGS.map((b) => {
-      const source = buildings.scene.getObjectByName(`building_${b.variant}`)!;
-      const clone = enableShadows(source.clone(), true, true);
-      clone.position.set(b.position[0], 0, b.position[2]);
-      clone.rotation.y = b.rotationY;
-      clone.scale.setScalar(b.scale);
-      return clone;
+      const variant = b.variant % 4;
+      const fit = fitOf(variant);
+      const model = enableShadows(buildings.scene.getObjectByName(`building_${variant}`)!.clone(), true, true);
+      model.rotation.set(0, 0, 0);
+      model.scale.set(1, 1, 1);
+      model.position.set(-fit.center.x, -fit.bottom, -fit.center.z);
+      const building = new THREE.Group();
+      building.add(model);
+      // The models are built facing +Z; rotationY is a heading, which faces -Z at zero.
+      building.rotation.y = b.rotationY + Math.PI;
+      // Facing north or south, the model's width runs along world x; facing east or west, along world z.
+      const facesNorthSouth = Math.abs(Math.sin(b.rotationY)) < 0.5;
+      const [width, depth] = facesNorthSouth ? [b.half[0] * 2, b.half[1] * 2] : [b.half[1] * 2, b.half[0] * 2];
+      building.scale.set(width / fit.size.x, b.height / fit.size.y, depth / fit.size.z);
+      building.position.set(b.center[0], 0, b.center[1]);
+      return building;
     });
 
     // Everything tall enough to hide the car can dissolve while it does (R3). Building clones and kiosks share

@@ -314,7 +314,7 @@ export function pondDepth(x: number, z: number): number {
   return POND.depth * ((1 - n) / (1 - shoreStart));
 }
 
-// ---------- Props, furniture, backdrop ----------
+// ---------- Props, furniture, city blocks ----------
 
 export type PropKind = 'cone' | 'crate' | 'sign' | 'bench' | 'brick' | 'barrel';
 
@@ -402,6 +402,166 @@ const STRUCTURES: Array<{ at: Vec2; clear: number }> = [
 
 const nearStructure = (x: number, z: number) => STRUCTURES.some((s) => Math.hypot(x - s.at[0], z - s.at[1]) < s.clear);
 
+/** Flower beds in the park (center x/z, size x/z), as `district.py` plants them. */
+export const FLOWER_BEDS = ([[-55, 30], [-13, 22], [-55, -35]] as Vec2[]).map((center) => ({ center, size: [6.5, 3.5] as Vec2 }));
+
+/**
+ * Park pockets (center x/z, size x/z): lawn kept free of buildings around the pond, the benches and the flower
+ * beds, for park trees to fill.
+ */
+export const PARK_POCKETS = [
+  { name: 'pond', center: [-35.25, -12] as Vec2, size: [33.5, 28] as Vec2 },
+  { name: 'benches', center: [-32.25, 10.25] as Vec2, size: [27.5, 16.5] as Vec2 },
+  ...FLOWER_BEDS.map((bed, i) => ({ name: `bed-${i}`, center: bed.center, size: [bed.size[0] + 2, bed.size[1] + 2] as Vec2 })),
+];
+
+const inRect = (x: number, z: number, center: Vec2, size: Vec2, margin: number) =>
+  Math.abs(x - center[0]) < size[0] / 2 + margin && Math.abs(z - center[1]) < size[1] / 2 + margin;
+
+/**
+ * A city building (KTD2): an axis-aligned footprint with its front turned to the road it lines. Every building
+ * is solid and dissolves on its own when it hides the car (KTD3).
+ */
+export interface Building {
+  /** Footprint center (x, z). */
+  center: Vec2;
+  /** Footprint half sizes along world x and z. */
+  half: Vec2;
+  /** Top of the roof's parapet above the ground. Rooftop props stand up to about 3 m above it. */
+  height: number;
+  /** Which way the front faces (HEADING convention): toward the road it lines. */
+  rotationY: number;
+  /** Wall color, an index into the look-dev's: limestone, sand, terracotta, brick, sage, slate blue. */
+  palette: number;
+  /** Which building model to clone. */
+  variant: number;
+}
+
+/**
+ * A row of buildings along one side of a road, generated as a street wall: fronts on one line, small gaps.
+ * `along` is the axis the row runs on; the fronts stand at `front` on the other axis and the buildings extend
+ * from it toward `back` (+1 or -1). `towers` is the share that rises as high-rises.
+ */
+interface StreetRow {
+  along: 'x' | 'z';
+  front: number;
+  back: 1 | -1;
+  span: Vec2;
+  depth: Vec2;
+  heights: Vec2;
+  towers?: number;
+  facing: number;
+  /** Clearance from every road's paved edge: the sidewalk, plus the setback of a camera-side row. */
+  roadMargin: number;
+}
+
+/**
+ * Camera-side rows (south or west of their road) stand this far behind the sidewalk. With the 9 m cap and 3 m
+ * of rooftop props, the line from the camera to a car on the near lane passes over them (KTD4).
+ */
+const CAMERA_SIDE_SETBACK = 2.5;
+/** Roof height cap, parapet included, of a camera-side row (KTD4). */
+const CAMERA_SIDE_HEIGHT = 9;
+/** High-rise heights, north and east of the loop only (KTD4). */
+const HIGH_RISE: Vec2 = [40, 80];
+
+/** Seeded city blocks (KTD2, KTD4): street walls along both sides of the loop and the cross street. */
+export const BUILDINGS: Building[] = (() => {
+  const random = seededRandom(1945);
+  const range = ([a, b]: Vec2) => a + random() * (b - a);
+  const { halfX, halfZ } = ROADS.loop;
+  /** Distance from a road's centerline to the back of its sidewalk. */
+  const edge = ROADS.width / 2 + ROADS.sidewalk;
+  const far = ROADS.sidewalk + 0.5;
+  const near = ROADS.sidewalk + CAMERA_SIDE_SETBACK;
+  const low: Vec2 = [6, CAMERA_SIDE_HEIGHT];
+  const rows: StreetRow[] = [
+    // Outside the loop. North and east (the far side) carry the high-rises, two rows deep.
+    { along: 'x', front: -(halfZ + edge + 0.5), back: -1, span: [-100, 100], depth: [12, 18], heights: [14, 34], towers: 0.15, facing: HEADING.south, roadMargin: far },
+    { along: 'x', front: -83, back: -1, span: [-100, 100], depth: [12, 18], heights: [24, 40], towers: 0.3, facing: HEADING.south, roadMargin: far },
+    { along: 'z', front: halfX + edge + 0.5, back: 1, span: [-62, 100], depth: [7, 8], heights: [14, 30], towers: 0.1, facing: HEADING.west, roadMargin: far },
+    { along: 'z', front: 87.5, back: 1, span: [-62, 100], depth: [10, 13], heights: [20, 40], towers: 0.3, facing: HEADING.west, roadMargin: far },
+    // South and west (the camera side): low rows, set back.
+    { along: 'x', front: halfZ + edge + CAMERA_SIDE_SETBACK, back: 1, span: [-100, 78], depth: [8, 12], heights: low, facing: HEADING.north, roadMargin: near },
+    { along: 'x', front: 78.5, back: 1, span: [-100, 78], depth: [8, 12], heights: low, facing: HEADING.north, roadMargin: near },
+    { along: 'z', front: -(halfX + edge + CAMERA_SIDE_SETBACK), back: -1, span: [-62, 64], depth: [8, 10], heights: low, facing: HEADING.east, roadMargin: near },
+    { along: 'z', front: -91.5, back: -1, span: [-62, 64], depth: [8, 10], heights: low, facing: HEADING.east, roadMargin: near },
+    // Inside the loop: low rows south of the north road, west of the east road and west of the cross street.
+    { along: 'x', front: -(halfZ - edge - CAMERA_SIDE_SETBACK), back: 1, span: [-62, 62], depth: [7, 9], heights: low, facing: HEADING.north, roadMargin: near },
+    { along: 'z', front: halfX - edge - CAMERA_SIDE_SETBACK, back: -1, span: [-46, 46], depth: [7, 9], heights: low, facing: HEADING.east, roadMargin: near },
+    { along: 'z', front: ROADS.crossStreetX - edge - CAMERA_SIDE_SETBACK, back: -1, span: [-46, 46], depth: [6, 6.5], heights: low, facing: HEADING.east, roadMargin: near },
+    // Mid-rises east of the cross street, behind its billboards.
+    { along: 'z', front: 17, back: 1, span: [-3, 23], depth: [12, 14], heights: [12, 22], facing: HEADING.west, roadMargin: far },
+    { along: 'z', front: 32.5, back: 1, span: [-3, 23], depth: [12, 16], heights: [12, 24], facing: HEADING.west, roadMargin: far },
+  ];
+
+  const result: Building[] = [];
+  const goal = PITCH.goal.depth;
+  /** Distance from the footprint to a ground point (0 inside). */
+  const gap = (cx: number, cz: number, hx: number, hz: number, [x, z]: Vec2) =>
+    Math.hypot(Math.max(Math.abs(x - cx) - hx, 0), Math.max(Math.abs(z - cz) - hz, 0));
+  const clearOf = (cx: number, cz: number, hx: number, hz: number, center: Vec2, size: Vec2, margin: number) =>
+    Math.abs(cx - center[0]) >= hx + size[0] / 2 + margin || Math.abs(cz - center[1]) >= hz + size[1] / 2 + margin;
+  const buildable = (cx: number, cz: number, hx: number, hz: number, roadMargin: number) => {
+    if (Math.abs(cx) + hx > WORLD_HALF - 2 || Math.abs(cz) + hz > WORLD_HALF - 2) return false;
+    if (!PLAZAS.every((p) => clearOf(cx, cz, hx, hz, p.center, p.size, 1.5))) return false;
+    if (!PARK_POCKETS.every((p) => clearOf(cx, cz, hx, hz, p.center, p.size, 0.5))) return false;
+    if (!clearOf(cx, cz, hx, hz, PITCH.center, [PITCH.size[0] + goal * 2, PITCH.size[1]], 1)) return false;
+    if (!clearOf(cx, cz, hx, hz, TOWER.center, [TOWER.halfSize * 2, TOWER.halfSize * 2], 3)) return false;
+    if (!clearOf(cx, cz, hx, hz, PROJECTS_HALL.center, PROJECTS_HALL.size, 2)) return false;
+    if (!clearOf(cx, cz, hx, hz, CAMPUS.center, CAMPUS.size, 2)) return false;
+    if (STRUCTURES.some((s) => gap(cx, cz, hx, hz, s.at) < s.clear)) return false;
+    if (PROPS.some((p) => gap(cx, cz, hx, hz, [p.position[0], p.position[2]]) < 2)) return false;
+    if (ZONES.some((zone) => gap(cx, cz, hx, hz, zone.center) < zone.radius + 3)) return false;
+    if (gap(cx, cz, hx, hz, [BILLBOARD.position[0], BILLBOARD.position[2]]) < 16) return false;
+    if (!result.every((b) => clearOf(cx, cz, hx, hz, b.center, [b.half[0] * 2, b.half[1] * 2], 0.8))) return false;
+    // Roads and the pond: sample the footprint at most 1 m apart. Row fronts stand exactly on the road margin.
+    const nx = Math.ceil(hx * 2);
+    const nz = Math.ceil(hz * 2);
+    for (let i = 0; i <= nx; i++) {
+      for (let j = 0; j <= nz; j++) {
+        const x = cx - hx + (i / nx) * hx * 2;
+        const z = cz - hz + (j / nz) * hz * 2;
+        if (onRoad(x, z, roadMargin - 0.05) || pondNorm(x, z) < 1.25) return false;
+      }
+    }
+    return true;
+  };
+
+  for (const row of rows) {
+    let at = row.span[0];
+    while (at < row.span[1] - 6) {
+      const depth = range(row.depth);
+      let width = Math.min(range([8, 16]), row.span[1] - at);
+      let placed = false;
+      // Narrow a building that does not fit before giving up on this spot.
+      for (; width >= 6 && !placed; width -= 2) {
+        const mid = at + width / 2;
+        const back = row.front + (row.back * depth) / 2;
+        const [cx, cz, hx, hz] = row.along === 'x' ? [mid, back, width / 2, depth / 2] : [back, mid, depth / 2, width / 2];
+        if (!buildable(cx, cz, hx, hz, row.roadMargin)) continue;
+        const tower = row.towers !== undefined && random() < row.towers;
+        result.push({
+          center: [cx, cz],
+          half: [hx, hz],
+          height: Math.round((tower ? range(HIGH_RISE) : range(row.heights)) * 10) / 10,
+          rotationY: row.facing,
+          palette: Math.floor(random() * 6),
+          // Today's four building models.
+          variant: Math.floor(random() * 4),
+        });
+        at += width + range([0.8, 1.6]);
+        placed = true;
+      }
+      if (!placed) at += 1;
+    }
+  }
+  return result;
+})();
+
+/** Ground point lies within `margin` of a building's footprint. */
+const nearBuilding = (x: number, z: number, margin: number) => BUILDINGS.some((b) => inRect(x, z, b.center, [b.half[0] * 2, b.half[1] * 2], margin));
+
 export const TREES: StaticPlacement[] = (() => {
   const random = seededRandom(2026);
   const result: StaticPlacement[] = [];
@@ -414,7 +574,8 @@ export const TREES: StaticPlacement[] = (() => {
     ZONES.some((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) < zone.radius + 3) ||
     inPlaza(x, z, 2.5) ||
     onPitch(x, z, 6) ||
-    nearStructure(x, z);
+    nearStructure(x, z) ||
+    nearBuilding(x, z, 2.5);
   for (let i = 0; i < 260 && result.length < 90; i++) {
     const x = (random() * 2 - 1) * (WORLD_HALF - 18);
     const z = (random() * 2 - 1) * (WORLD_HALF - 18);
@@ -438,29 +599,9 @@ export const LAMPS: StaticPlacement[] = (() => {
     result.push({ position: [-halfX - off, 0, z + 10], rotationY: HEADING.east, scale: 1, variant: 0 });
   }
   return result.filter(
-    (l) => !ZONES.some((zone) => Math.hypot(l.position[0] - zone.center[0], l.position[2] - zone.center[1]) < zone.radius + 2) && !nearStructure(l.position[0], l.position[2]),
+    (l) =>
+      !ZONES.some((zone) => Math.hypot(l.position[0] - zone.center[0], l.position[2] - zone.center[1]) < zone.radius + 2) &&
+      !nearStructure(l.position[0], l.position[2]) &&
+      !nearBuilding(l.position[0], l.position[2], 1.5),
   );
 })();
-
-/** Backdrop buildings ringing the district (static, collidable). */
-export const BUILDINGS: StaticPlacement[] = (() => {
-  const random = seededRandom(77);
-  const result: StaticPlacement[] = [];
-  const add = (x: number, z: number, rotationY: number) =>
-    result.push({ position: [x, 0, z], rotationY, scale: 0.9 + random() * 0.3, variant: Math.floor(random() * 4) });
-  for (let x = -84; x <= 84; x += 24) {
-    add(x, -94, HEADING.south);
-    if (Math.abs(x - BILLBOARD.position[0]) > 26) add(x, 96, HEADING.north);
-  }
-  for (let z = -60; z <= 60; z += 24) {
-    add(96, z, HEADING.west);
-    add(-96, z, HEADING.east);
-  }
-  return result;
-})();
-
-/** Footprint half-size of each backdrop building variant, before per-instance scale. */
-export const BUILDING_HALF = [7, 8, 6.5, 7.5];
-/** Roof height of each backdrop building variant including its cap or crown, before per-instance scale. */
-export const BUILDING_HEIGHT = [31, 46, 26, 37];
-
