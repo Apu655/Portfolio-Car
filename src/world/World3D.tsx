@@ -5,7 +5,8 @@ import { usePortfolio } from '../state/store';
 import { LoadingScreen } from '../ui/LoadingScreen';
 import { WorldLabels } from '../ui/WorldLabels';
 import { AudioDriver } from './audio/AudioDriver';
-import { ChaseCamera } from './camera/ChaseCamera';
+import { FollowCamera } from './camera/FollowCamera';
+import { framing, ZOOM } from './camera/framing';
 import { Lighting } from './lighting/Lighting';
 import { PostFx } from './lighting/PostFx';
 import { chooseTier, floorFpsFor, FrameRateMonitor, lowerTier, TIER_SETTINGS, type Tier } from './lighting/quality';
@@ -16,6 +17,10 @@ import { LabelProjector } from './scene/LabelProjector';
 import { Props } from './scene/Props';
 import { Water } from './scene/Water';
 import { installTestHooks } from './testHooks';
+import { VIEW } from './district/layout';
+
+/** Where the camera stands before the first frame: the opening's high, wide framing. */
+const OPENING_CAMERA = framing({ follow: [0, 0, 0], zoom: ZOOM.default, speed: 0, aspect: 1.6, arrival: 0 }).position;
 
 function coarsePointer(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
@@ -65,7 +70,7 @@ export default function World3D() {
   return (
     <>
       <div className="world" role="region" aria-label="3D district. Use the Menu button to visit each stop with a keyboard or screen reader.">
-        <Canvas onCreated={installTestHooks} shadows={settings.shadows} dpr={settings.dpr} camera={{ fov: 55, near: 0.3, far: 2000, position: [-90, 70, -90] }} gl={{ antialias: !settings.postProcessing, powerPreference: 'high-performance' }}>
+        <Canvas onCreated={installTestHooks} shadows={settings.shadows} dpr={settings.dpr} camera={{ fov: VIEW.fov, near: 0.3, far: 2000, position: OPENING_CAMERA }} gl={{ antialias: !settings.postProcessing, powerPreference: 'high-performance' }}>
           <Lighting shadows={settings.shadows} shadowMapSize={settings.shadowMapSize} />
           <Suspense fallback={null}>
             <Physics timeStep={1 / 60} interpolate gravity={[0, -9.81, 0]}>
@@ -75,7 +80,7 @@ export default function World3D() {
             </Physics>
             <Water />
             <Billboard />
-            <ChaseCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
+            <FollowCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
             {settings.postProcessing && <PostFx />}
             <LabelProjector />
           </Suspense>

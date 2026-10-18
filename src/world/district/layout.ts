@@ -254,9 +254,15 @@ export const BUILDINGS: StaticPlacement[] = (() => {
 /** Footprint half-size of each backdrop building variant, before per-instance scale. */
 export const BUILDING_HALF = [7, 8, 6.5, 7.5];
 
-/** The opening camera reveal: a sweep across the district that settles behind the car. */
-export const REVEAL = [
-  { position: [-90, 70, -90] as Vec3, target: [20, 20, 0] as Vec3 },
-  { position: [70, 55, -60] as Vec3, target: [TOWER.center[0], 50, TOWER.center[1]] as Vec3 },
-  { position: [60, 18, 80] as Vec3, target: [BILLBOARD.position[0], 8, BILLBOARD.position[2]] as Vec3 },
-];
+/**
+ * The fixed camera view (KTD1 of the isometric camera plan): the camera always looks toward the north-east, from
+ * the south-west, about 48° down. From here the Career Tower's west entrance and the kiosks' south faces show.
+ */
+export const VIEW = {
+  /** Heading the camera looks along (same convention as HEADING): north-east. */
+  heading: -Math.PI / 4,
+  /** Angle below the horizon, radians. */
+  elevation: (48 * Math.PI) / 180,
+  /** Vertical field of view, degrees: narrow, for gentle perspective. */
+  fov: 32,
+} as const;
