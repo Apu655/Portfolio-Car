@@ -1,6 +1,6 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode, type RefObject } from 'react';
-import { profile, role } from '../content/portfolio';
-import { ContactLinks, EducationList, ProjectList, ResearchList, RoleDetails, TOWER_NAMES } from '../ui/PanelContent';
+import { profile } from '../content/portfolio';
+import { ContactLinks, EducationList, ProjectList, ResearchList, RoleList, TOWER_NAMES } from '../ui/PanelContent';
 import { anchorId, formatHash, sameSelection, SECTIONS, SECTION_LABELS, type Section, type Selection } from '../state/route';
 import { usePortfolio } from '../state/store';
 
@@ -169,10 +169,7 @@ export function BasicSite() {
         </section>
 
         <SectionBlock section="experience">
-          <article className="card" aria-labelledby="experience-role-title">
-            <h3 id="experience-role-title">{role.title}</h3>
-            <RoleDetails role={role} />
-          </article>
+          <RoleList activeId={activeItem('experience')} idPrefix="experience" />
         </SectionBlock>
 
         <SectionBlock section="research">

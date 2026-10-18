@@ -116,7 +116,7 @@ describe('driving up to a tower and pressing E', () => {
     await enterZone('research');
     await user.keyboard('e');
     const research = screen.getByRole('dialog', { name: 'Research & publications' });
-    for (const theme of ['Healthcare AI', 'NLP', 'LLM research']) {
+    for (const theme of ['LLM research', 'NLP', 'Healthcare AI', 'Computer vision']) {
       expect(within(research).getByRole('region', { name: theme })).toBeInTheDocument();
     }
     await user.keyboard('{Escape}');
@@ -124,15 +124,31 @@ describe('driving up to a tower and pressing E', () => {
     await enterZone('projects');
     await user.keyboard('e');
     const projects = screen.getByRole('dialog', { name: 'Projects' });
-    expect(within(projects).getAllByRole('link', { name: 'GitHub repository' }).length).toBeGreaterThan(0);
-    expect(within(projects).getByRole('link', { name: 'Live demo' })).toBeInTheDocument();
+    expect(within(projects).getByRole('heading', { name: 'Railway Management System' })).toBeInTheDocument();
+    expect(within(projects).getByRole('img', { name: 'Screenshot of Movie Streaming Site' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
 
     await enterZone('contact');
     await user.keyboard('e');
     const contact = screen.getByRole('dialog', { name: 'Contact' });
-    for (const name of ['Email', 'LinkedIn', 'GitHub']) expect(within(contact).getByRole('link', { name })).toBeInTheDocument();
+    for (const name of ['Email', 'GitHub']) expect(within(contact).getByRole('link', { name })).toBeInTheDocument();
     expect(within(contact).getByRole('link', { name: 'Résumé (PDF)' })).toHaveAttribute('download');
+  });
+});
+
+describe('the Career Tower’s roles', () => {
+  it('features MetLife and switches to another role without moving the car', async () => {
+    const user = start('#/3d');
+    await enterZone('experience');
+    await user.keyboard('e');
+    const panel = screen.getByRole('dialog', { name: 'Software Engineer – AI' });
+    expect(within(panel).getByText('MetLife')).toBeInTheDocument();
+    const travelsBefore = usePortfolio.getState().navToken;
+    await user.click(within(panel).getAllByRole('button', { name: 'Show details' })[1]);
+    expect(screen.getByRole('dialog', { name: 'Team Lead' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/3d/experience/sysonex');
+    expect(usePortfolio.getState().travel).toBe(false);
+    expect(usePortfolio.getState().navToken).toBe(travelsBefore + 1);
   });
 });
 

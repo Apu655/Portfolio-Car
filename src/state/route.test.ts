@@ -2,11 +2,12 @@ import { anchorId, formatHash, parseHash } from './route';
 
 describe('parseHash', () => {
   it('reads view, section, and item', () => {
-    expect(parseHash('#/3d/research/llm-calibration')).toEqual({
+    expect(parseHash('#/3d/research/secarely')).toEqual({
       view: '3d',
-      selection: { section: 'research', itemId: 'llm-calibration' },
+      selection: { section: 'research', itemId: 'secarely' },
     });
-    expect(parseHash('#/basic/education/msc')).toEqual({ view: 'basic', selection: { section: 'education', itemId: 'msc' } });
+    expect(parseHash('#/basic/education/monash-mai')).toEqual({ view: 'basic', selection: { section: 'education', itemId: 'monash-mai' } });
+    expect(parseHash('#/3d/experience/sysonex')).toEqual({ view: '3d', selection: { section: 'experience', itemId: 'sysonex' } });
     expect(parseHash('#/basic/research')).toEqual({ view: 'basic', selection: { section: 'research' } });
   });
 
@@ -21,23 +22,22 @@ describe('parseHash', () => {
       view: 'basic',
       selection: { section: 'projects' },
     });
-    // The career tower has a single role, so experience links carry no item.
     expect(parseHash('#/3d/experience/anything')).toEqual({ view: '3d', selection: { section: 'experience' } });
   });
 });
 
 describe('formatHash', () => {
   it('round-trips through parseHash', () => {
-    const hash = formatHash('3d', { section: 'research', itemId: 'clinical-notes-llm' });
-    expect(hash).toBe('#/3d/research/clinical-notes-llm');
-    expect(parseHash(hash)).toEqual({ view: '3d', selection: { section: 'research', itemId: 'clinical-notes-llm' } });
+    const hash = formatHash('3d', { section: 'research', itemId: 'bsl-avatar-tutor' });
+    expect(hash).toBe('#/3d/research/bsl-avatar-tutor');
+    expect(parseHash(hash)).toEqual({ view: '3d', selection: { section: 'research', itemId: 'bsl-avatar-tutor' } });
     expect(formatHash('basic', null)).toBe('#/basic');
   });
 });
 
 describe('anchorId', () => {
   it('gives the basic view element id for a place', () => {
-    expect(anchorId({ section: 'projects', itemId: 'eval-kit' })).toBe('projects-eval-kit');
+    expect(anchorId({ section: 'projects', itemId: 'ecommerce' })).toBe('projects-ecommerce');
     expect(anchorId({ section: 'contact' })).toBe('contact');
   });
 });

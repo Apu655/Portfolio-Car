@@ -22,4 +22,9 @@ describe('role date formatting', () => {
   it('measures ongoing roles up to today', () => {
     expect(formatRoleDuration({ start: '2024-09', end: null }, new Date(2026, 9, 18))).toBe('2 yrs 2 mos');
   });
+
+  it('formats year-only dates as the bare year', () => {
+    expect(formatYearMonth('2026')).toBe('2026');
+    expect(formatRoleDates({ start: '2020', end: '2024' })).toBe('2020 – 2024');
+  });
 });

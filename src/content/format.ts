@@ -2,13 +2,15 @@ import type { Role, YearMonth } from './portfolio';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** A year-only date ("2026") counts as January for durations. */
 export function parseYearMonth(value: YearMonth): { year: number; month: number } {
   const [year, month] = value.split('-').map(Number);
-  return { year, month };
+  return { year, month: month || 1 };
 }
 
 export function formatYearMonth(value: YearMonth | null): string {
   if (value === null) return 'Present';
+  if (!value.includes('-')) return value;
   const { year, month } = parseYearMonth(value);
   return `${MONTHS[month - 1]} ${year}`;
 }

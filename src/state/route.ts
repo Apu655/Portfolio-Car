@@ -1,4 +1,4 @@
-import { education, papers, projects } from '../content/portfolio';
+import { education, papers, projects, roles } from '../content/portfolio';
 
 export type View = '3d' | 'basic';
 
@@ -14,7 +14,7 @@ export const SECTION_LABELS: Record<Section, string> = {
   contact: 'Contact',
 };
 
-/** Where the visitor is: a section, optionally one item inside it (a paper, project, or qualification). */
+/** Where the visitor is: a section, optionally one item inside it (a role, paper, project, or qualification). */
 export interface Selection {
   section: Section;
   itemId?: string;
@@ -27,6 +27,7 @@ export interface Route {
 }
 
 const ITEM_IDS: Partial<Record<Section, Set<string>>> = {
+  experience: new Set(roles.map((r) => r.id)),
   research: new Set(papers.map((p) => p.id)),
   projects: new Set(projects.map((p) => p.id)),
   education: new Set(education.map((e) => e.id)),
