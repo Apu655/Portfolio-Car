@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
 import { carRefs } from '../carRef';
 import { SPAWN, zoneAt, zoneFor, type Zone } from '../district/layout';
-import { combineInputs, readKeyboardInput, touchActions, touchInput, useDriveKeys, wantsRecover } from '../drive/input';
+import { combineInputs, readKeyboardInput, touchActions, touchInput, touchStick, useDriveKeys, wantsRecover } from '../drive/input';
+import { stickToDrive } from '../drive/screenSteer';
 import { emit, telemetry } from '../events';
 import { lightingState } from '../lighting/state';
 import { WaterContact } from '../physics/water';
@@ -15,6 +16,7 @@ import {
   createVehicle,
   FlipWatch,
   forwardSpeed,
+  headingOf,
   placeChassis,
   recoverChassis,
   uprightness,
@@ -101,7 +103,8 @@ export function Car() {
     if (!chassis || !v) return;
     const dt = w.timestep;
     const state = usePortfolio.getState();
-    let input = combineInputs(readKeyboardInput(keys.current), touchInput);
+    const touch = { ...stickToDrive(touchStick, headingOf(chassis)), handbrake: touchInput.handbrake };
+    let input = combineInputs(readKeyboardInput(keys.current), touch);
     const anyInput = input.throttle !== 0 || input.steer !== 0 || input.handbrake;
     if (state.revealing) inputArmed.current = false;
     else if (!inputArmed.current && !anyInput) inputArmed.current = true;

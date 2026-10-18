@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { touchActions, touchInput } from '../world/drive/input';
+import { touchActions, touchInput, touchStick } from '../world/drive/input';
 
 /** True on phones and tablets (a coarse pointer and no hover). */
 export function useCoarsePointer(): boolean {
@@ -17,7 +17,7 @@ export function useCoarsePointer(): boolean {
 
 const RADIUS = 52;
 
-/** On-screen joystick (drive and steer) plus handbrake and recover buttons, feeding the same input the keyboard does. */
+/** On-screen joystick (drive toward where you push) plus handbrake and recover buttons. */
 export function TouchControls() {
   const base = useRef<HTMLDivElement>(null);
   const pointer = useRef<number | null>(null);
@@ -25,8 +25,8 @@ export function TouchControls() {
 
   useEffect(
     () => () => {
-      touchInput.throttle = 0;
-      touchInput.steer = 0;
+      touchStick.x = 0;
+      touchStick.y = 0;
       touchInput.handbrake = false;
     },
     [],
@@ -42,17 +42,16 @@ export function TouchControls() {
       dy = (dy / length) * RADIUS;
     }
     setKnob([dx, dy]);
-    // A small dead zone keeps the car still when a thumb rests on the stick.
-    const axis = (v: number) => (Math.abs(v) < 0.15 ? 0 : v);
-    touchInput.throttle = axis(-dy / RADIUS);
-    touchInput.steer = axis(-dx / RADIUS);
+    // Screen-relative: the car drives toward where the stick points (the car applies the dead zone).
+    touchStick.x = dx / RADIUS;
+    touchStick.y = -dy / RADIUS;
   };
 
   const release = () => {
     pointer.current = null;
     setKnob([0, 0]);
-    touchInput.throttle = 0;
-    touchInput.steer = 0;
+    touchStick.x = 0;
+    touchStick.y = 0;
   };
 
   return (

@@ -35,8 +35,11 @@ export function wantsRecover(pressed: ReadonlySet<string>): boolean {
   return any(pressed, KEY_BINDINGS.recover);
 }
 
-/** Written by the on-screen joystick and buttons on touch devices; read by the car each frame. */
+/** Written by the on-screen buttons on touch devices; read by the car each frame. */
 export const touchInput: DriveInput = { throttle: 0, steer: 0, handbrake: false };
+
+/** The on-screen joystick in screen space (x right, y up, each -1..1); the car maps it with `stickToDrive`. */
+export const touchStick = { x: 0, y: 0 };
 
 /** One-shot touch actions (the Recover button). */
 export const touchActions = { recover: false };
