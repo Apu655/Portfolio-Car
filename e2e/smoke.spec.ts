@@ -65,17 +65,17 @@ test('drive into the Career zone, press E, read MetLife and the dates, drive off
   await page.keyboard.down('KeyW');
   await expect(prompt).toContainText('Career Tower', { timeout: 15_000 });
   await page.keyboard.up('KeyW');
-  // Pull up inside the zone, as a driver would, then open it.
-  await page.keyboard.down('Space');
-  await page.waitForFunction(() => Math.abs(window.__district!.telemetry.speed) < 0.5, null, { timeout: 5_000 });
-  await page.keyboard.up('Space');
+  // Pull up inside the zone with the brakes, as a driver would, then open it.
+  await page.keyboard.down('KeyS');
+  await page.waitForFunction(() => window.__district!.telemetry.speed < 0.5, null, { timeout: 5_000 });
+  await page.keyboard.up('KeyS');
   await expect(prompt).toContainText('Career Tower');
   const before = await page.evaluate(() => [...window.__district!.telemetry.position]);
   await page.keyboard.press('KeyE');
 
   const panel = page.getByRole('dialog', { name: 'Software Engineer – AI' });
   await expect(panel).toBeVisible();
-  await expect(panel.getByText('MetLife')).toBeVisible();
+  await expect(panel.getByText('MetLife', { exact: true })).toBeVisible();
   await expect(panel.getByText(/Nov 2023 – Jul 2026/)).toBeVisible();
   await expect(page).toHaveURL(/#\/3d\/experience$/);
   await page.waitForTimeout(1500); // let the camera settle on the tower
@@ -190,6 +190,42 @@ test('clicking the Career Tower travels there and opens its panel', async ({ pag
   await page.mouse.click(x, y);
   await expect(page.getByRole('dialog', { name: 'Software Engineer – AI' })).toBeVisible();
   await expect(page).toHaveURL(/#\/3d\/experience$/); // R9
+});
+
+test('a gate screen opens the item it is showing', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  await place(page, -3, -52, -Math.PI / 2); // on the north road, west of the Projects gate
+  await page.waitForTimeout(800);
+  // The Projects gate's left screen: gate centre (7, -55), facing west; screen 2.85 m left, 0.95 m out, 7.8 m up.
+  const [x, y] = await page.evaluate(() => {
+    const r = window.__district!.r3f;
+    const v = r.camera.position.clone().set(6.05, 7.8, -57.85).project(r.camera);
+    return [((v.x + 1) / 2) * r.size.width, ((1 - v.y) / 2) * r.size.height];
+  });
+  await page.mouse.click(x, y);
+  await expect(page.getByRole('dialog', { name: 'Projects' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/3d\/projects\/[a-z-]+$/);
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('a map letter travels to its section', async ({ page }) => {
+  await startDriving(page);
+  await page.getByRole('navigation', { name: 'District map' }).getByRole('button', { name: 'Travel to Education (E)' }).click();
+  await expect(page.getByRole('dialog', { name: 'Education' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/3d\/education$/);
+});
+
+test('the car can knock the tech footballs around', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  await place(page, -33.6, 46, NORTH); // south edge of the pitch, facing the balls
+  const before = (await events(page)).length;
+  await page.keyboard.down('KeyW');
+  await expect.poll(async () => (await events(page)).slice(before).filter((e) => e === 'impact').length, { timeout: 10_000 }).toBeGreaterThan(0);
+  await page.keyboard.up('KeyW');
+  await page.screenshot({ path: 'test-results/footballs.png' });
+  expect(errors.map((e) => e.text())).toEqual([]);
 });
 
 test('fast travel and the conventional portfolio keep your place', async ({ page }) => {

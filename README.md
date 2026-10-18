@@ -3,10 +3,15 @@
 An interactive 3D portfolio. Drive a classic coupe through a golden-hour miniature district, seen from a fixed
 isometric-style camera high above, and discover the career inside it:
 
-- **Career Tower**: experience (Software Engineer – AI at MetLife, Nov 2023 – Jul 2026). An original
-  contemporary corporate tower; MetLife is named only in the panel text.
-- **Research, Projects, Education, and Contact kiosks**: signposts along the north promenade.
+- **Career Tower (W)**: work experience at MetLife, George Mason University, Sysonex Development, and BRAC
+  University. An original contemporary corporate tower.
+- **Research (R), Projects (P), Education (E), and Contact (C) kiosks**: signposts along the north promenade.
+- **Section gates**: a gate across each stop's approach road, with a lettered header and two screens that cycle
+  through that section's logos, project screenshots, titles, and one-liners. A readable caption appears under
+  the gate as you drive up; click a screen or caption to open that item.
 - **The APU ISLAM billboard**: flickers to life when you arrive, then glows steadily.
+- **The corner map**: the district drawn the way the camera shows it, with a letter per section to travel to.
+- **The football pitch** near the start: eight balls carrying the tech stack to knock around with the car.
 
 Pull into a glowing zone and press **E** to open its panel. Along the way, knock over cones, crates, barrels,
 signs, and benches, smash through the brick wall, and splash across the pond. The sky follows a day cycle that
@@ -14,7 +19,7 @@ starts at your local time and runs a full day in about 12 minutes: golden sunset
 with lit windows, streetlights, and headlights. A conventional **quick view** has the same content, is always one
 click away, and keeps your place when you switch.
 
-Content marked "Placeholder" is waiting for yours.
+Content comes from Apu's CV and project list in `src/content/portfolio.ts`.
 
 ## Run it locally
 
@@ -40,6 +45,7 @@ Open <http://localhost:5173>. Add `?time=21:30` to the URL to start the clock at
 | `npm run assets:build` | Rebuilds every 3D model with Blender (see below); `npm run assets:build -- car props` rebuilds some |
 | `npm run budget` | Checks download budgets: models ≤ 3 MB, audio ≤ 2.5 MB, total 3D download ≤ 8 MB (after a build) |
 | `npm run resume:placeholder` | Regenerates the placeholder `public/resume.pdf` |
+| `node scripts/build-showcase.mjs` | Resizes the screenshots and logos in `assets/My Items/` into `public/showcase/` (macOS `sips`) |
 
 ### Rebuilding the 3D models
 
@@ -64,6 +70,7 @@ and colliders all come from it, so Blender and the runtime always agree.
 | `E` | Open the stop whose glowing zone you're in |
 | `Esc` | Close the menu, then the panel (pressing `W` again also closes the panel and drives off) |
 | `M` | Fast-travel menu (keyboard and screen-reader friendly) |
+| `N` | Enlarge or shrink the corner map |
 | Click or tap the Career Tower or a kiosk | Fast travel there and open its panel |
 | Scroll · pinch | Zoom in and out (the camera angle itself is fixed) |
 | Touch | Push the joystick toward where you want to drive; Brake, Recover, and an "Open" button inside a zone |
@@ -71,8 +78,11 @@ and colliders all come from it, so Blender and the runtime always agree.
 
 **Day dial** (top bar): pause or resume the day cycle and drag to any time. On phones it collapses to a time chip.
 
-**Sound** (top bar): a mute toggle and a volume slider, both remembered. Nothing plays until your first click,
-tap, or key press, as browsers require.
+**Sound** (top bar): a mute toggle, a volume slider, and a Background music switch, all remembered. Nothing
+plays until your first click, tap, or key press, as browsers require. The music is a soft ambient score generated
+in the browser, so it is copyright-free and adds nothing to the download.
+
+**Map** (bottom-right corner): click a letter to travel there; press `N` for a larger map with a legend.
 
 ## How it fits together
 
@@ -108,14 +118,15 @@ e2e/                     Playwright smoke tests (drive to the tower, pond, cones
 
 ## Replacing placeholders
 
-1. Edit `src/content/portfolio.ts`.
-2. Replace `public/resume.pdf` with your résumé.
-3. Update the name and description in `index.html` if needed.
+1. Edit `src/content/portfolio.ts`. The gate screens and captions read from it through `src/content/showcase.ts`.
+2. Add the LinkedIn and Google Scholar URLs to `profile.contact` (the CV names them without links).
+3. Replace `public/resume.pdf` with your résumé.
+4. For new screenshots or logos, put them in `assets/My Items/`, list them in `scripts/build-showcase.mjs`, and run it.
 
 ## Known limitations
 
-- All sounds are synthesized in the browser; recorded CC0 samples can replace individual sounds later
-  (list them in `public/audio/LICENSES.md`).
-- Only the Career Tower is a full landmark in this slice; Research, Projects, Education, and Contact are kiosks.
+- All sounds and the music are synthesized in the browser; recorded CC0 samples can replace individual sounds
+  later (list them in `public/audio/LICENSES.md`).
+- Only the Career Tower is a full landmark in this slice; Research, Projects, Education, and Contact are kiosks with gates.
 - No traffic or pedestrians.
 - The quick view renders in the browser, so search engines may index it poorly (no prerendering yet).
