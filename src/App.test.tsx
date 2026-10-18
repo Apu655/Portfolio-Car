@@ -278,3 +278,28 @@ describe('sound controls (AE4)', () => {
     expect(screen.getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
   });
 });
+
+describe('controls card (fixed camera)', () => {
+  it('tells desktop visitors that scrolling zooms', () => {
+    start();
+    expect(screen.getByText('Scroll')).toBeInTheDocument();
+    expect(screen.getByText('Zoom in and out')).toBeInTheDocument();
+  });
+
+  it('tells touch visitors to pinch to zoom and that the joystick drives where they push', () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      start();
+      expect(screen.getByText('Pinch')).toBeInTheDocument();
+      expect(screen.getByText('Push toward where you want to drive')).toBeInTheDocument();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});

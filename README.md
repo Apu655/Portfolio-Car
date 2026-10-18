@@ -1,7 +1,7 @@
 # Apu Islam: the Career District
 
-An interactive 3D portfolio. Drive a classic coupe through a golden-hour miniature district and discover the
-career inside it:
+An interactive 3D portfolio. Drive a classic coupe through a golden-hour miniature district, seen from a fixed
+isometric-style camera high above, and discover the career inside it:
 
 - **Career Tower**: experience (Software Engineer – AI at MetLife, Nov 2023 – Jul 2026). An original
   contemporary corporate tower; MetLife is named only in the panel text.
@@ -64,9 +64,9 @@ and colliders all come from it, so Blender and the runtime always agree.
 | `E` | Open the stop whose glowing zone you're in |
 | `Esc` | Close the menu, then the panel (pressing `W` again also closes the panel and drives off) |
 | `M` | Fast-travel menu (keyboard and screen-reader friendly) |
-| Click or tap a building | Fast travel there and open its panel |
-| Mouse drag · wheel | Look around · zoom |
-| Touch | On-screen joystick, Brake, Recover, and an "Open" button inside a zone |
+| Click or tap the Career Tower or a kiosk | Fast travel there and open its panel |
+| Scroll · pinch | Zoom in and out (the camera angle itself is fixed) |
+| Touch | Push the joystick toward where you want to drive; Brake, Recover, and an "Open" button inside a zone |
 | Any key or tap during the opening fly-over | Skip it |
 
 **Day dial** (top bar): pause or resume the day cycle and drag to any time. On phones it collapses to a time chip.
@@ -84,7 +84,7 @@ src/
   world/district/        the layout as data (roads, zones, props, pond, billboard) and the static colliders
   world/physics/         Rapier raycast vehicle tuning, pond drag and grip, prop masses and reset rules
   world/scene/           React Three Fiber components: district, car, props, water, billboard, labels
-  world/camera/          chase camera, panel framing, and the opening reveal
+  world/camera/          fixed-view follow camera, zoom, panel framing, the opening, and see-through buildings
   world/lighting/        day clock, time-of-day keyframes, sky, night glow, quality tiers, post-processing
   world/audio/           synthesized soundscape: engine and tires, impacts, splashes, ambience, voice limiter
   world/events.ts        event bus and telemetry: physics publishes, audio, effects, and HUD listen

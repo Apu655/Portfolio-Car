@@ -22,7 +22,9 @@ function ControlsList({ touch }: { touch: boolean }) {
     return (
       <dl className="controls">
         <dt>Joystick</dt>
-        <dd>Drive and steer</dd>
+        <dd>Push toward where you want to drive</dd>
+        <dt>Pinch</dt>
+        <dd>Zoom in and out</dd>
         <dt>Interact</dt>
         <dd>Open a stop when you’re in its glowing zone</dd>
         <dt>Recover</dt>
@@ -60,6 +62,8 @@ function ControlsList({ touch }: { touch: boolean }) {
         <kbd>M</kbd>
       </dt>
       <dd>Fast travel menu</dd>
+      <dt>Scroll</dt>
+      <dd>Zoom in and out</dd>
       <dt>Click a building</dt>
       <dd>Fast travel there</dd>
     </dl>

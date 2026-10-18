@@ -131,6 +131,67 @@ test('the cone slalom reacts to the car with impact events', async ({ page }) =>
   expect(errors.map((e) => e.text())).toEqual([]);
 });
 
+test('the fixed camera never turns with the car, zooms only between its limits, and ignores drags', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  await place(page, -20, 57.5, -Math.PI / 2); // on the south road, facing east
+  const orientation = () => page.evaluate(() => window.__district!.r3f.camera.quaternion.toArray().map((n) => Number(n.toFixed(4))));
+  const distance = () =>
+    page.evaluate(() => {
+      const c = window.__district!.r3f.camera.position;
+      const t = window.__district!.telemetry.position;
+      return Math.hypot(c.x - t[0], c.y - t[1], c.z - t[2]);
+    });
+
+  const before = await orientation();
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(800);
+  await page.keyboard.down('KeyA');
+  await page.waitForTimeout(2000);
+  await page.keyboard.up('KeyA');
+  await page.keyboard.up('KeyW');
+  expect(await orientation()).toEqual(before); // R1
+
+  // Zoom with the wheel over the scene, out past the farthest limit and back in past the closest (AE6).
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => Math.abs(window.__district!.telemetry.speed) < 0.3, null, { timeout: 5_000 });
+  await page.keyboard.up('Space');
+  await page.waitForTimeout(2500); // let the speed pull-back settle so only zoom changes the distance
+  await page.mouse.move(900, 500);
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(1200);
+  const far = await distance();
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(800);
+  expect(await distance()).toBeCloseTo(far, 0);
+  for (let i = 0; i < 24; i++) await page.mouse.wheel(0, -400);
+  await page.waitForTimeout(1200);
+  expect(await distance()).toBeLessThan(far / 2);
+
+  // A drag across the scene leaves the camera where it is (R5).
+  const at = () => page.evaluate(() => window.__district!.r3f.camera.position.toArray().map((n) => Number(n.toFixed(2))));
+  const still = await at();
+  await page.mouse.down();
+  await page.mouse.move(600, 350, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  expect(await at()).toEqual(still);
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('clicking the Career Tower travels there and opens its panel', async ({ page }) => {
+  await startDriving(page);
+  await place(page, 15, 0, NORTH); // the tower's podium is in view to the north-east
+  const [x, y] = await page.evaluate(() => {
+    const r = window.__district!.r3f;
+    const v = r.camera.position.clone().set(27, 5, -9).project(r.camera); // a point on the podium
+    return [((v.x + 1) / 2) * r.size.width, ((1 - v.y) / 2) * r.size.height];
+  });
+  await page.mouse.click(x, y);
+  await expect(page.getByRole('dialog', { name: 'Software Engineer – AI' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/3d\/experience$/); // R9
+});
+
 test('fast travel and the conventional portfolio keep your place', async ({ page }) => {
   await startDriving(page);
   await page.getByRole('button', { name: 'Menu' }).click();
