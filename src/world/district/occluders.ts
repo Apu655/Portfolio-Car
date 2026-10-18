@@ -1,7 +1,22 @@
 // Things tall enough to hide the car from the fixed camera (KTD5 of the isometric camera plan): one box per
 // fadeable object, sized to what you see rather than to its collider, keyed by the name its scene object
 // registers under. The camera-to-car line is tested against these each frame.
-import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, GATE_FRAME, KIOSK_Z, KIOSKS, SECTION_GATES, TOWER, type Vec3 } from './layout';
+import {
+  BILLBOARD,
+  BUILDING_HALF,
+  BUILDING_HEIGHT,
+  BUILDINGS,
+  CAMPUS,
+  CONTACT_KIOSK,
+  GATE_FRAME,
+  PROJECTS_HALL,
+  ROADSIDE_FRAME,
+  ROADSIDE_SLOTS,
+  ROBOT,
+  SECTION_GATES,
+  TOWER,
+  type Vec3,
+} from './layout';
 
 export interface Occluder {
   key: string;
@@ -30,7 +45,14 @@ export const OCCLUDERS: Occluder[] = [
   ...SECTION_GATES.map((g) =>
     box(`gate-${g.section}`, g.center[0], g.center[1], g.halfSpan + GATE_FRAME.pillarHalf, GATE_FRAME.header.centerY + GATE_FRAME.header.height / 2 + 0.3, 2.2, g.rotationY),
   ),
-  ...KIOSKS.map((k) => box(`kiosk-${k.section}`, k.focus[0], KIOSK_Z, 1.8, 4.6, 0.9)),
+  box('kiosk-contact', CONTACT_KIOSK.position[0], CONTACT_KIOSK.position[1], 1.8, 4.6, 0.9),
+  // Roadside billboards: the leaning face and its frame, up to the top edge.
+  ...ROADSIDE_SLOTS.map((s) =>
+    box(s.key, s.position[0], s.position[1], ROADSIDE_FRAME.width / 2 + 0.3, ROADSIDE_FRAME.centerY + ROADSIDE_FRAME.height / 2 + 0.4, 1.4, ROADSIDE_FRAME.rotationY),
+  ),
+  box('robot', ROBOT.position[0], ROBOT.position[1], ROBOT.radius + 0.3, ROBOT.height + 0.4, ROBOT.radius + 0.3),
+  box('projects-hall', PROJECTS_HALL.center[0], PROJECTS_HALL.center[1], PROJECTS_HALL.size[0] / 2, PROJECTS_HALL.height + 1.5, PROJECTS_HALL.size[1] / 2),
+  box('campus', CAMPUS.center[0], CAMPUS.center[1], CAMPUS.size[0] / 2, CAMPUS.towerHeight, CAMPUS.size[1] / 2),
   ...BUILDINGS.map((b, i) => {
     const half = BUILDING_HALF[b.variant] * b.scale;
     return box(`building-${i}`, b.position[0], b.position[2], half, BUILDING_HEIGHT[b.variant] * b.scale, half, b.rotationY);

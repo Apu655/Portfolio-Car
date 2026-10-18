@@ -2,7 +2,6 @@
 // Reads each file's glTF JSON chunk directly, so no decoder or WebGL is needed.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { KIOSKS } from './layout';
 
 interface GltfJson {
   nodes: Array<{ name?: string }>;
@@ -35,12 +34,10 @@ describe('built models expose the runtime contract', () => {
     expect(billboard.materials.has('billboard_bulb')).toBe(true);
   });
 
-  it('kiosks: one kiosk per stand-in section, each with its own glow material, plus the five section gates', () => {
+  it('kiosks: the Contact kiosk with its glow material, plus the five section gates', () => {
     const kiosks = gltf('kiosks');
-    for (const k of KIOSKS) {
-      expect(kiosks.nodes.has(`kiosk_${k.section}`)).toBe(true);
-      expect(kiosks.materials.has(`kiosk_glow_${k.section}`)).toBe(true);
-    }
+    expect(kiosks.nodes.has('kiosk_contact')).toBe(true);
+    expect(kiosks.materials.has('kiosk_glow_contact')).toBe(true);
     for (const section of ['experience', 'research', 'projects', 'education', 'contact']) expect(kiosks.nodes.has(`gate_${section}`), section).toBe(true);
     expect(kiosks.nodes.has('city_gate')).toBe(false);
   });

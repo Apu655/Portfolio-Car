@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei';
 import { CuboidCollider, CylinderCollider, RigidBody, TrimeshCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
-import { BUILDINGS, KIOSKS, SECTION_GATES, TOWER } from '../district/layout';
+import { BUILDINGS, SECTION_GATES, TOWER } from '../district/layout';
 import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
 import { Selectable } from './Selectable';
 
@@ -57,7 +57,7 @@ function trimeshOf(root: THREE.Object3D): { vertices: Float32Array; indices: Uin
   return { vertices: new Float32Array(vertices), indices: new Uint32Array(indices) };
 }
 
-/** Static scenery: ground (trimesh collider), roads, landscaping, tower, kiosks, gate, backdrop buildings. Clicking the tower or a kiosk travels there. */
+/** Static scenery: ground (trimesh collider), roads, landscaping, tower, Contact kiosk, gates, backdrop buildings. Clicking the tower or the kiosk travels there. */
 export function District() {
   const district = useModel(MODEL_URLS.district);
   const tower = useModel(MODEL_URLS.tower);
@@ -94,12 +94,12 @@ export function District() {
     const dissolvables: Array<[string, Dissolvable]> = [
       ['tower', makeDissolvable(tower.scene, { cloneMaterials: false })],
       ...SECTION_GATES.map((g): [string, Dissolvable] => [`gate-${g.section}`, makeDissolvable(kiosks.scene.getObjectByName(`gate_${g.section}`)!, { cloneMaterials: true })]),
-      ...KIOSKS.map((k): [string, Dissolvable] => [`kiosk-${k.section}`, makeDissolvable(kiosks.scene.getObjectByName(`kiosk_${k.section}`)!, { cloneMaterials: true })]),
+      ['kiosk-contact', makeDissolvable(kiosks.scene.getObjectByName('kiosk_contact')!, { cloneMaterials: true })],
       ...backdrop.map((b, i): [string, Dissolvable] => [`building-${i}`, makeDissolvable(b, { cloneMaterials: true })]),
     ];
-    // Each kiosk renders as its own clickable object; the section gates stay in the shared kiosks scene.
-    const kioskNodes = KIOSKS.map((k) => ({ section: k.section, node: kiosks.scene.getObjectByName(`kiosk_${k.section}`)! }));
-    return { scene, ground, groundShape, backdrop, dissolvables, kioskNodes };
+    // The Contact kiosk renders as its own clickable object; the section gates stay in the shared kiosks scene.
+    const contactKiosk = kiosks.scene.getObjectByName('kiosk_contact')!;
+    return { scene, ground, groundShape, backdrop, dissolvables, contactKiosk };
   }, [district, tower, kiosks, buildings]);
 
   useEffect(() => {
@@ -118,11 +118,9 @@ export function District() {
         <primitive object={tower.scene} position={[TOWER.center[0], 0, TOWER.center[1]]} />
       </Selectable>
       <primitive object={kiosks.scene} />
-      {parts.kioskNodes.map(({ section, node }) => (
-        <Selectable key={section} selection={{ section }}>
-          <primitive object={node} />
-        </Selectable>
-      ))}
+      <Selectable selection={{ section: 'contact' }}>
+        <primitive object={parts.contactKiosk} />
+      </Selectable>
       {parts.backdrop.map((b, i) => (
         <primitive key={i} object={b} />
       ))}

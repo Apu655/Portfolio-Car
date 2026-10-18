@@ -24,6 +24,8 @@ export const WORLD_HALF = 105;
 export interface Zone {
   section: TowerSection;
   name: string;
+  /** The item the stop opens, when it stands for one item rather than its whole section (the SeCAREly robot). */
+  itemId?: string;
   center: Vec2;
   radius: number;
   /** Where fast travel parks the car (on the lane beside the zone) and which way it faces. */
@@ -51,26 +53,66 @@ const careerZone: Zone = {
   accent: '#e9b85a',
 };
 
-export const KIOSK_Z = -69;
-const kioskZone = (section: TowerSection, name: string, x: number, accent: string): Zone => ({
-  section,
-  name,
-  center: [x, -57.5],
+/**
+ * The robot standing in the middle of the east road just past the Research gate (R7, R8). It turns toward the car
+ * and greets it with SeCAREly text; its zone opens the SeCAREly paper.
+ */
+export const ROBOT = { position: [70, 22] as Vec2, radius: 1.1, height: 3.6, facing: HEADING.south };
+
+/** One building for all the projects, north of the north road (R10). `size` is its footprint (x, z). */
+export const PROJECTS_HALL = { center: [12, -75] as Vec2, size: [18, 12] as Vec2, height: 12, facing: HEADING.south };
+
+/** A small university-style hall east of the west road (R11); the clock tower rises to `towerHeight`. */
+export const CAMPUS = { center: [-54, 12] as Vec2, size: [12, 16] as Vec2, height: 10, towerHeight: 16, facing: HEADING.west };
+
+/** The Contact kiosk, north of the south road a little west of the start (R12). Its face looks south. */
+export const CONTACT_KIOSK = { position: [-28, 46] as Vec2, accent: '#d77fb5' };
+
+const robotZone: Zone = {
+  section: 'research',
+  name: 'SeCAREly robot',
+  itemId: 'secarely',
+  center: ROBOT.position,
+  radius: 7,
+  parking: { position: [67.5, 28], heading: HEADING.north },
+  focus: [ROBOT.position[0], 2.4, ROBOT.position[1]],
+  accent: '#59c3d6',
+};
+
+const projectsZone: Zone = {
+  section: 'projects',
+  name: 'Projects Hall',
+  center: [PROJECTS_HALL.center[0], -57.5],
+  radius: 6,
+  parking: { position: [PROJECTS_HALL.center[0] + 3, -57.5], heading: HEADING.west },
+  focus: [PROJECTS_HALL.center[0], 6, PROJECTS_HALL.center[1]],
+  accent: '#e8875c',
+};
+
+const campusZone: Zone = {
+  section: 'education',
+  name: 'Campus',
+  center: [-67.5, CAMPUS.center[1]],
+  radius: 6,
+  parking: { position: [-67.5, CAMPUS.center[1] - 4], heading: HEADING.south },
+  focus: [CAMPUS.center[0], 5, CAMPUS.center[1]],
+  accent: '#8cc97f',
+};
+
+const contactZone: Zone = {
+  section: 'contact',
+  name: 'Contact kiosk',
+  center: [CONTACT_KIOSK.position[0], 52.5],
   radius: 5.5,
-  parking: { position: [x + 3, -57.5], heading: HEADING.west },
-  focus: [x, 3, KIOSK_Z],
-  accent,
-});
+  parking: { position: [CONTACT_KIOSK.position[0] + 3, 52.5], heading: HEADING.east },
+  focus: [CONTACT_KIOSK.position[0], 3, CONTACT_KIOSK.position[1]],
+  accent: CONTACT_KIOSK.accent,
+};
 
-/** Signpost kiosks along the north road stand in for the four other landmarks until M2. */
-export const KIOSKS: Zone[] = [
-  kioskZone('research', 'Research kiosk', 45, '#59c3d6'),
-  kioskZone('projects', 'Projects kiosk', 15, '#e8875c'),
-  kioskZone('education', 'Education kiosk', -15, '#8cc97f'),
-  kioskZone('contact', 'Contact kiosk', -45, '#d77fb5'),
-];
+/** The stops after the Career Tower, one per section road. */
+export const STOPS: Zone[] = [robotZone, projectsZone, campusZone, contactZone];
 
-export const ZONES: Zone[] = [careerZone, ...KIOSKS];
+export const ZONES: Zone[] = [careerZone, ...STOPS];
 
 export function zoneFor(section: TowerSection): Zone {
   return ZONES.find((z) => z.section === section)!;
@@ -81,13 +123,14 @@ export function zoneAt(x: number, z: number): Zone | null {
   return ZONES.find((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) <= zone.radius) ?? null;
 }
 
-export const SPAWN = { position: [-40, 57.5] as Vec2, heading: HEADING.east };
+/** On the south road just past the Contact stop, so a counter-clockwise tour of the sections ends back here (R2). */
+export const SPAWN = { position: [-18, 57.5] as Vec2, heading: HEADING.east };
 
-/** Paved plazas (center x/z, size x/z): the tower forecourt, the prop plaza, and the kiosk promenade. */
+/** Paved plazas (center x/z, size x/z): the tower forecourt, the prop plaza, and the Projects Hall forecourt. */
 export const PLAZAS = [
   { name: 'forecourt', center: [TOWER.center[0] - TOWER.halfSize - 8, TOWER.center[1]] as Vec2, size: [16, 26] as Vec2 },
   { name: 'props', center: [30, 35] as Vec2, size: [34, 20] as Vec2 },
-  { name: 'kiosks', center: [0, KIOSK_Z] as Vec2, size: [120, 12] as Vec2 },
+  { name: 'projects', center: [PROJECTS_HALL.center[0], -66] as Vec2, size: [20, 6] as Vec2 },
 ];
 
 const inPlaza = (x: number, z: number, margin: number) =>
@@ -141,9 +184,9 @@ export const SECTION_TITLES: Record<TowerSection, string> = {
 };
 
 /**
- * Section gates: a stone-and-brass frame across the approach road to each stop, a few meters before its zone,
- * carrying a lettered header and two screens that cycle through the section's items. Each gate's face (local +Z)
- * points toward the fixed camera's side of the road; its pillars stand on the sidewalks at local x = ±halfSpan.
+ * Section gates: a stone-and-brass frame across the entrance of each section's road (R1, R3), carrying a lettered
+ * header sign. Past the gate stand the section's billboards and its stop. Each gate's face (local +Z) points toward
+ * the fixed camera's side of the road; its pillars stand on the sidewalks at local x = ±halfSpan.
  */
 export interface SectionGate {
   section: TowerSection;
@@ -164,14 +207,64 @@ export const GATE_FRAME = {
 } as const;
 
 export const SECTION_GATES: SectionGate[] = [
-  // Across the cross street, south of the Career Tower zone, facing south.
-  { section: 'experience', center: [0, -6], rotationY: 0, halfSpan: 6.5 },
-  // Across the north road, west of each kiosk zone, facing west.
-  { section: 'research', center: [36, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
-  { section: 'projects', center: [7, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
-  { section: 'education', center: [-24, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
-  { section: 'contact', center: [-54, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
+  // Gates across north–south roads face south and those across east–west roads face west, toward the camera.
+  { section: 'experience', center: [0, 40], rotationY: 0, halfSpan: 6.5 },
+  { section: 'research', center: [70, 32], rotationY: 0, halfSpan: 6.5 },
+  { section: 'projects', center: [40, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
+  { section: 'education', center: [-70, -30], rotationY: 0, halfSpan: 6.5 },
+  { section: 'contact', center: [-48, 55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
 ];
+
+/** Which way a counter-clockwise tour drives along each section's road (unit vector on the ground, x/z). */
+export const TRAVEL: Record<TowerSection, Vec2> = {
+  experience: [0, -1],
+  research: [0, -1],
+  projects: [-1, 0],
+  education: [0, 1],
+  contact: [1, 0],
+};
+
+/**
+ * Roadside billboard frame (KTD3), in the board's own frame: two posts carry a face that leans back so the high
+ * fixed camera sees it nearly face-on. Every board turns to face the camera, like the name billboard.
+ */
+export const ROADSIDE_FRAME = {
+  width: 7,
+  height: 3.94,
+  /** Height of the face's center above the ground. */
+  centerY: 5.4,
+  /** Lean back from vertical, top away from the camera. */
+  tilt: (32 * Math.PI) / 180,
+  postHalf: 0.22,
+  /** Posts stand this far either side of the board's center, along its width. */
+  postOffset: 2.6,
+  rotationY: VIEW.heading,
+} as const;
+
+/**
+ * Where each section's billboards stand (KTD2, KTD4): beside its road on the side away from the camera, after its
+ * gate in the direction of travel. Slots pair in order with the section's showcase items; Research skips
+ * SeCAREly (the robot carries it), Projects has none (the hall stands for them), and Contact's entries share one.
+ */
+export const ROADSIDE_BILLBOARDS: Record<TowerSection, Vec2[]> = {
+  experience: [21, 13.5, 6, -1.5].map((z): Vec2 => [11, z]),
+  research: [14, 5, -4, -13, -22, -31, -40, -49].map((z): Vec2 => [81, z]),
+  projects: [],
+  education: [-20, -10].map((z): Vec2 => [-58.5, z]),
+  contact: [[-40, 44]],
+};
+
+/** Every billboard slot with a stable key, in section order. */
+export const ROADSIDE_SLOTS = (Object.entries(ROADSIDE_BILLBOARDS) as Array<[TowerSection, Vec2[]]>).flatMap(([section, slots]) =>
+  slots.map((position, index) => ({ key: `roadside-${section}-${index}`, section, index, position })),
+);
+
+/** World position of a point given in a billboard's own frame (x along its width, z toward its face). */
+export function roadsidePoint(position: Vec2, x: number, z: number): Vec2 {
+  const cos = Math.cos(ROADSIDE_FRAME.rotationY);
+  const sin = Math.sin(ROADSIDE_FRAME.rotationY);
+  return [position[0] + x * cos + z * sin, position[1] - x * sin + z * cos];
+}
 
 /** World position of a point given in a gate's own frame. */
 export function gatePoint(gate: SectionGate, x: number, z: number): Vec2 {
@@ -243,7 +336,7 @@ export const PROPS: PropPlacement[] = (() => {
   // Street signs at the T-junctions and park benches.
   list.push({ id: 'sign-0', kind: 'sign', position: [7, 0, 47.5], rotationY: 0 });
   list.push({ id: 'sign-1', kind: 'sign', position: [-7, 0, -47.5], rotationY: Math.PI });
-  [[-50, 8, 0.4], [-20, 8, -0.4], [-35, -22, Math.PI]].forEach(([x, z, r], i) =>
+  [[-30, 14, 0.2], [-20, 8, -0.4], [-35, -22, Math.PI]].forEach(([x, z, r], i) =>
     list.push({ id: `bench-${i}`, kind: 'bench', position: [x, 0, z], rotationY: r }),
   );
   list.push(...brickWall([30, 30], 12, 6));
@@ -270,6 +363,18 @@ export function onRoad(x: number, z: number, margin = 0): boolean {
   return Math.abs(x - ROADS.crossStreetX) <= half && Math.abs(z) <= halfZ;
 }
 
+/** Ground points the section structures stand on, each with a clearance radius, for keeping trees and lamps away. */
+const STRUCTURES: Array<{ at: Vec2; clear: number }> = [
+  ...SECTION_GATES.flatMap((g) => [-1, 1].map((side) => ({ at: gatePoint(g, side * g.halfSpan, 0), clear: 3 }))),
+  ...ROADSIDE_SLOTS.map((s) => ({ at: s.position, clear: ROADSIDE_FRAME.width / 2 + 2 })),
+  { at: ROBOT.position, clear: ROBOT.radius + 3 },
+  { at: PROJECTS_HALL.center, clear: Math.hypot(...PROJECTS_HALL.size) / 2 + 3 },
+  { at: CAMPUS.center, clear: Math.hypot(...CAMPUS.size) / 2 + 3 },
+  { at: CONTACT_KIOSK.position, clear: 4 },
+];
+
+const nearStructure = (x: number, z: number) => STRUCTURES.some((s) => Math.hypot(x - s.at[0], z - s.at[1]) < s.clear);
+
 export const TREES: StaticPlacement[] = (() => {
   const random = seededRandom(2026);
   const result: StaticPlacement[] = [];
@@ -281,7 +386,8 @@ export const TREES: StaticPlacement[] = (() => {
     PROPS.some((p) => Math.hypot(x - p.position[0], z - p.position[2]) < 3) ||
     ZONES.some((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) < zone.radius + 3) ||
     inPlaza(x, z, 2.5) ||
-    onPitch(x, z, 6);
+    onPitch(x, z, 6) ||
+    nearStructure(x, z);
   for (let i = 0; i < 260 && result.length < 90; i++) {
     const x = (random() * 2 - 1) * (WORLD_HALF - 18);
     const z = (random() * 2 - 1) * (WORLD_HALF - 18);
@@ -304,7 +410,9 @@ export const LAMPS: StaticPlacement[] = (() => {
     result.push({ position: [halfX + off, 0, z], rotationY: HEADING.west, scale: 1, variant: 0 });
     result.push({ position: [-halfX - off, 0, z + 10], rotationY: HEADING.east, scale: 1, variant: 0 });
   }
-  return result.filter((l) => !ZONES.some((zone) => Math.hypot(l.position[0] - zone.center[0], l.position[2] - zone.center[1]) < zone.radius + 2));
+  return result.filter(
+    (l) => !ZONES.some((zone) => Math.hypot(l.position[0] - zone.center[0], l.position[2] - zone.center[1]) < zone.radius + 2) && !nearStructure(l.position[0], l.position[2]),
+  );
 })();
 
 /** Backdrop buildings ringing the district (static, collidable). */

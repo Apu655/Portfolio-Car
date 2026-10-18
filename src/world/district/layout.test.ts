@@ -1,13 +1,100 @@
 import { distanceToCollider, STATIC_COLLIDERS } from './colliders';
 import { TO_CAMERA } from '../camera/framing';
-import { BILLBOARD, FOOTBALLS, gatePoint, onRoad, PITCH, POND, pondDepth, PROPS, SECTION_GATES, SPAWN, TREES, ZONES, zoneAt, zoneFor } from './layout';
+import { SHOWCASE } from '../../content/showcase';
+import {
+  BILLBOARD,
+  BUILDING_HALF,
+  BUILDINGS,
+  CAMPUS,
+  CONTACT_KIOSK,
+  FOOTBALLS,
+  gatePoint,
+  LAMPS,
+  onRoad,
+  PITCH,
+  PLAZAS,
+  POND,
+  pondDepth,
+  PROJECTS_HALL,
+  PROPS,
+  ROADSIDE_BILLBOARDS,
+  ROADSIDE_FRAME,
+  ROADSIDE_SLOTS,
+  roadsidePoint,
+  ROADS,
+  ROBOT,
+  SECTION_GATES,
+  SPAWN,
+  TOWER,
+  TRAVEL,
+  TREES,
+  ZONES,
+  zoneAt,
+  zoneFor,
+  type Vec2,
+  type Vec3,
+} from './layout';
+import type { TowerSection } from '../events';
 
 const solids = STATIC_COLLIDERS.filter((c) => !c.name.startsWith('wall-'));
+const SECTIONS: TowerSection[] = ['experience', 'research', 'projects', 'education', 'contact'];
+
+/** Progress along a section's road in its direction of travel. */
+const progress = (section: TowerSection, [x, z]: Vec2) => x * TRAVEL[section][0] + z * TRAVEL[section][1];
+
+/** The road coordinate each section's road runs along: x for north–south roads, z for east–west ones. */
+const ROAD_LINE: Record<TowerSection, { axis: 0 | 1; at: number }> = {
+  experience: { axis: 0, at: ROADS.crossStreetX },
+  research: { axis: 0, at: ROADS.loop.halfX },
+  projects: { axis: 1, at: -ROADS.loop.halfZ },
+  education: { axis: 0, at: -ROADS.loop.halfX },
+  contact: { axis: 1, at: ROADS.loop.halfZ },
+};
+
+/** Whether a point stands on the side of its section's road away from the fixed camera (KTD2): east or north. */
+const farSide = (section: TowerSection, p: Vec2) => {
+  const line = ROAD_LINE[section];
+  return line.axis === 0 ? p[0] > line.at + ROADS.width / 2 : p[1] < line.at - ROADS.width / 2;
+};
+
+/** Where each section's stop structure stands. */
+const STOP_AT: Record<TowerSection, Vec2> = {
+  experience: TOWER.center,
+  research: ROBOT.position,
+  projects: PROJECTS_HALL.center,
+  education: CAMPUS.center,
+  contact: CONTACT_KIOSK.position,
+};
+
+/** A billboard face's corners on screen, projected along the fixed camera's view (KTD3, R5). */
+function projectedFace(position: Vec2): { minX: number; maxX: number; minY: number; maxY: number } {
+  const f: Vec3 = [-TO_CAMERA[0], -TO_CAMERA[1], -TO_CAMERA[2]];
+  const right: Vec3 = [-f[2], 0, f[0]];
+  const rl = Math.hypot(...right);
+  const r: Vec3 = [right[0] / rl, 0, right[2] / rl];
+  const up: Vec3 = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  const { width, height, centerY, tilt } = ROADSIDE_FRAME;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      // The face leans back: its top moves away from the camera (local -Z).
+      const ly = centerY + sy * (height / 2) * Math.cos(tilt);
+      const lz = -sy * (height / 2) * Math.sin(tilt);
+      const [x, z] = roadsidePoint(position, sx * (width / 2), lz);
+      xs.push(x * r[0] + ly * r[1] + z * r[2]);
+      ys.push(x * up[0] + ly * up[1] + z * up[2]);
+    }
+  }
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
 
 describe('district layout', () => {
-  it('has the Career Tower zone and the four kiosk zones', () => {
-    expect(ZONES.map((z) => z.section)).toEqual(['experience', 'research', 'projects', 'education', 'contact']);
+  it('has one stop per section, with the robot standing for SeCAREly', () => {
+    expect(ZONES.map((z) => z.section)).toEqual(SECTIONS);
     expect(zoneFor('experience').name).toBe('Career Tower');
+    expect(zoneFor('research').itemId).toBe('secarely');
+    for (const section of SECTIONS.filter((s) => s !== 'research')) expect(zoneFor(section).itemId, section).toBeUndefined();
   });
 
   it('puts every zone and parking spot on a road, clear of anything solid', () => {
@@ -33,9 +120,22 @@ describe('district layout', () => {
     expect(BILLBOARD.position[2]).toBeGreaterThan(SPAWN.position[1]);
   });
 
-  it('keeps solid scenery off the roads', () => {
+  it('keeps solid scenery off the roads, except the robot, which stands in the road on purpose (R7)', () => {
     for (const c of solids) {
+      if (c.name === 'robot') continue;
       expect(onRoad(c.position[0], c.position[2], -0.5), c.name).toBe(false);
+    }
+  });
+
+  it('leaves both lanes beside the robot drivable (R8)', () => {
+    const [x, z] = ROBOT.position;
+    expect(onRoad(x, z)).toBe(true);
+    expect(x).toBe(ROADS.loop.halfX);
+    const clear = ROADS.width / 2 - ROBOT.radius;
+    expect(clear).toBeGreaterThanOrEqual(3.5);
+    for (const c of solids) {
+      if (c.name === 'robot') continue;
+      for (const side of [-1, 1]) expect(distanceToCollider(c, x + side * (ROBOT.radius + 1.75), z), c.name).toBeGreaterThan(1);
     }
   });
 
@@ -71,16 +171,94 @@ describe('district layout', () => {
     expect(cos).toBeGreaterThan(Math.cos((10 * Math.PI) / 180));
   });
 
-  it('puts a gate across the approach road a few meters before each stop', () => {
-    expect(SECTION_GATES.map((g) => g.section).sort()).toEqual(ZONES.map((z) => z.section).sort());
+  it('puts each gate across its own road, before its billboards and its stop (R1, R2)', () => {
+    expect(SECTION_GATES.map((g) => g.section).sort()).toEqual([...SECTIONS].sort());
     for (const g of SECTION_GATES) {
+      const line = ROAD_LINE[g.section];
+      expect(g.center[line.axis], g.section).toBe(line.at);
       expect(onRoad(...g.center), g.section).toBe(true);
       for (const side of [-1, 1]) expect(onRoad(...gatePoint(g, side * g.halfSpan, 0), -0.5), `${g.section} pillar`).toBe(false);
+      const gateAt = progress(g.section, g.center);
       const zone = zoneFor(g.section);
-      const d = Math.hypot(g.center[0] - zone.center[0], g.center[1] - zone.center[1]);
-      expect(d, g.section).toBeGreaterThan(zone.radius);
-      expect(d, g.section).toBeLessThan(16);
+      expect(progress(g.section, zone.center), `${g.section} zone`).toBeGreaterThan(gateAt + zone.radius);
+      expect(progress(g.section, STOP_AT[g.section]), `${g.section} stop`).toBeGreaterThan(gateAt);
+      for (const slot of ROADSIDE_BILLBOARDS[g.section]) expect(progress(g.section, slot), `${g.section} board`).toBeGreaterThan(gateAt);
     }
+    // The robot greets the car before the paper billboards (R7).
+    for (const slot of ROADSIDE_BILLBOARDS.research) expect(progress('research', slot)).toBeGreaterThan(progress('research', ROBOT.position));
+  });
+
+  it('stands billboards and buildings beside their road on the side away from the camera (KTD2)', () => {
+    for (const section of SECTIONS) {
+      for (const slot of ROADSIDE_BILLBOARDS[section]) expect(farSide(section, slot), `${section} board ${slot}`).toBe(true);
+      if (section !== 'research' && section !== 'experience') expect(farSide(section, STOP_AT[section]), `${section} stop`).toBe(true);
+    }
+  });
+
+  it('pairs billboard slots with the showcase items (KTD4)', () => {
+    expect(ROADSIDE_BILLBOARDS.experience).toHaveLength(SHOWCASE.experience.length);
+    expect(ROADSIDE_BILLBOARDS.research).toHaveLength(SHOWCASE.research.filter((i) => i.itemId !== 'secarely').length);
+    expect(ROADSIDE_BILLBOARDS.education).toHaveLength(SHOWCASE.education.length);
+    expect(ROADSIDE_BILLBOARDS.contact).toHaveLength(1);
+    expect(ROADSIDE_BILLBOARDS.projects).toHaveLength(0);
+    expect(ROADSIDE_BILLBOARDS.research).toHaveLength(8);
+  });
+
+  it('never overlaps two billboard faces in the fixed camera view (R5)', () => {
+    const faces = ROADSIDE_SLOTS.map((s) => ({ key: s.key, box: projectedFace(s.position) }));
+    for (let i = 0; i < faces.length; i++) {
+      for (let j = i + 1; j < faces.length; j++) {
+        const a = faces[i].box;
+        const b = faces[j].box;
+        const overlap = a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+        expect(overlap, `${faces[i].key} vs ${faces[j].key}`).toBe(false);
+      }
+    }
+  });
+
+  it('keeps billboards, buildings, and the robot clear of roads, plazas, the pitch, the pond, and each other', () => {
+    const footprints: Array<{ name: string; at: Vec2; half: number }> = [
+      ...ROADSIDE_SLOTS.map((s) => ({ name: s.key, at: s.position, half: (ROADSIDE_FRAME.width / 2) * Math.SQRT1_2 + 0.6 })),
+      { name: 'robot', at: ROBOT.position, half: ROBOT.radius },
+      { name: 'hall', at: PROJECTS_HALL.center, half: Math.max(...PROJECTS_HALL.size) / 2 },
+      { name: 'campus', at: CAMPUS.center, half: Math.max(...CAMPUS.size) / 2 },
+      { name: 'kiosk', at: CONTACT_KIOSK.position, half: 1.7 },
+    ];
+    for (const s of ROADSIDE_SLOTS) {
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const [x, z] = roadsidePoint(s.position, (sx * ROADSIDE_FRAME.width) / 2, sz * 0.6);
+          expect(onRoad(x, z, ROADS.sidewalk), s.key).toBe(false);
+        }
+      }
+    }
+    for (const [name, center, size] of [
+      ['hall', PROJECTS_HALL.center, PROJECTS_HALL.size],
+      ['campus', CAMPUS.center, CAMPUS.size],
+    ] as const) {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) expect(onRoad(center[0] + (sx * size[0]) / 2, center[1] + (sz * size[1]) / 2, ROADS.sidewalk), name).toBe(false);
+    }
+    for (const f of footprints) {
+      if (f.name !== 'robot') expect(pondDepth(...f.at), f.name).toBe(0);
+      expect(Math.abs(f.at[0] - PITCH.center[0]) < PITCH.size[0] / 2 + f.half && Math.abs(f.at[1] - PITCH.center[1]) < PITCH.size[1] / 2 + f.half, f.name).toBe(false);
+      expect(Math.abs(f.at[0] - TOWER.center[0]) < TOWER.halfSize + f.half && Math.abs(f.at[1] - TOWER.center[1]) < TOWER.halfSize + f.half, f.name).toBe(false);
+      for (const p of PLAZAS) {
+        if (p.name === 'projects' && f.name === 'hall') continue;
+        const inside = Math.abs(f.at[0] - p.center[0]) < p.size[0] / 2 + f.half && Math.abs(f.at[1] - p.center[1]) < p.size[1] / 2 + f.half;
+        expect(inside, `${f.name} on plaza ${p.name}`).toBe(false);
+      }
+      BUILDINGS.forEach((b, i) => {
+        const half = BUILDING_HALF[b.variant] * b.scale + f.half;
+        expect(Math.abs(f.at[0] - b.position[0]) < half && Math.abs(f.at[1] - b.position[2]) < half, `${f.name} vs building-${i}`).toBe(false);
+      });
+    }
+    for (let i = 0; i < footprints.length; i++) {
+      for (let j = i + 1; j < footprints.length; j++) {
+        const [a, b] = [footprints[i], footprints[j]];
+        expect(Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]), `${a.name} vs ${b.name}`).toBeGreaterThan(a.half + b.half);
+      }
+    }
+    for (const l of LAMPS) for (const f of footprints) expect(Math.hypot(l.position[0] - f.at[0], l.position[2] - f.at[1]), `lamp vs ${f.name}`).toBeGreaterThan(f.half);
   });
 
   it('turns every gate face toward the fixed camera', () => {

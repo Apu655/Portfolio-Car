@@ -1,5 +1,5 @@
 import { framing, ZOOM } from '../camera/framing';
-import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, SECTION_GATES, SPAWN, TOWER, type Vec3 } from './layout';
+import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, ROADSIDE_SLOTS, ROBOT, SECTION_GATES, SPAWN, TOWER, type Vec3 } from './layout';
 import { blockingOccluders, OCCLUDERS } from './occluders';
 
 /** Where the fixed-view camera stands when following a car at `car`. */
@@ -41,5 +41,13 @@ describe('what blocks the camera', () => {
     const gate = SECTION_GATES.find((g) => g.section === 'research')!;
     const car: Vec3 = [gate.center[0] + 2, 1, gate.center[1] - 2]; // just past the gate, as seen from the south-west
     expect(blockingOccluders(cameraFor(car), car)).toContain('gate-research');
+  });
+
+  it('finds a roadside billboard and the robot when each stands between the camera and the car', () => {
+    const slot = ROADSIDE_SLOTS.find((s) => s.key === 'roadside-research-2')!;
+    const behindBoard: Vec3 = [slot.position[0] + 3, 1, slot.position[1] - 3];
+    expect(blockingOccluders(cameraFor(behindBoard), behindBoard)).toContain('roadside-research-2');
+    const behindRobot: Vec3 = [ROBOT.position[0] + 2, 1, ROBOT.position[1] - 2];
+    expect(blockingOccluders(cameraFor(behindRobot), behindRobot)).toContain('robot');
   });
 });

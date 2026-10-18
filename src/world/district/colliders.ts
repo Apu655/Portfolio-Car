@@ -1,6 +1,27 @@
 // Static colliders derived from the layout: everything solid the car can hit except the ground (a trimesh
 // from the district model) and the physical props (their own bodies).
-import { BILLBOARD, BUILDING_HALF, BUILDINGS, GATE_FRAME, gatePoint, KIOSK_Z, KIOSKS, LAMPS, PITCH, PLAZAS, SECTION_GATES, TOWER, TREES, WORLD_HALF, type Vec3 } from './layout';
+import {
+  BILLBOARD,
+  BUILDING_HALF,
+  BUILDINGS,
+  CAMPUS,
+  CONTACT_KIOSK,
+  GATE_FRAME,
+  gatePoint,
+  LAMPS,
+  PITCH,
+  PLAZAS,
+  PROJECTS_HALL,
+  ROADSIDE_FRAME,
+  ROADSIDE_SLOTS,
+  roadsidePoint,
+  ROBOT,
+  SECTION_GATES,
+  TOWER,
+  TREES,
+  WORLD_HALF,
+  type Vec3,
+} from './layout';
 
 export interface BoxCollider {
   kind: 'box';
@@ -43,15 +64,27 @@ export const STATIC_COLLIDERS: StaticCollider[] = [
   box('tower-podium', TOWER.center[0], TOWER.center[1], TOWER.halfSize, 8.6, TOWER.halfSize),
   box('tower-shaft', TOWER.center[0], TOWER.center[1], 9.5, TOWER.height, 9.5),
   box('tower-canopy-posts', TOWER.center[0] - TOWER.halfSize - 3.6, TOWER.center[1], 0.2, 5.8, 3.8),
-  // Kiosks and the section gates' pillars.
-  ...KIOSKS.map((k) => box(`kiosk-${k.section}`, k.focus[0], KIOSK_Z, 1.7, 4.4, 0.8)),
+  // The Contact kiosk, the section landmarks, and the section gates' pillars.
+  box('kiosk-contact', CONTACT_KIOSK.position[0], CONTACT_KIOSK.position[1], 1.7, 4.4, 0.8),
+  box('projects-hall', PROJECTS_HALL.center[0], PROJECTS_HALL.center[1], PROJECTS_HALL.size[0] / 2, PROJECTS_HALL.height, PROJECTS_HALL.size[1] / 2),
+  box('campus', CAMPUS.center[0], CAMPUS.center[1], CAMPUS.size[0] / 2, CAMPUS.height, CAMPUS.size[1] / 2),
+  // The robot stands in the road on purpose (R8): solid, so the car stops against it.
+  cylinder('robot', ROBOT.position[0], ROBOT.position[1], ROBOT.radius, ROBOT.height),
   ...SECTION_GATES.flatMap((g) =>
     [-1, 1].map((side) => {
       const [x, z] = gatePoint(g, side * g.halfSpan, 0);
       return box(`gate-${g.section}-pillar-${side}`, x, z, GATE_FRAME.pillarHalf, GATE_FRAME.pillarHeight, GATE_FRAME.pillarHalf, g.rotationY);
     }),
   ),
-  // Billboard posts (the board itself is above car height).
+  // Roadside billboard posts (the faces are above car height).
+  ...ROADSIDE_SLOTS.flatMap((slot) =>
+    [-1, 1].map((side) => {
+      const [x, z] = roadsidePoint(slot.position, side * ROADSIDE_FRAME.postOffset, 0);
+      const h = ROADSIDE_FRAME.postHalf;
+      return box(`${slot.key}-post${side}`, x, z, h, ROADSIDE_FRAME.centerY, h, ROADSIDE_FRAME.rotationY);
+    }),
+  ),
+  // Name billboard posts (the board itself is above car height).
   ...[-1, 1].map((side) => {
     const offset = (BILLBOARD.width / 3) * side;
     const x = BILLBOARD.position[0] + Math.cos(BILLBOARD.rotationY) * offset;
