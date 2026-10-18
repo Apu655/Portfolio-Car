@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
 import { BUILDINGS, KIOSKS, TOWER } from '../district/layout';
 import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
+import { Selectable } from './Selectable';
 
 export const MODEL_URLS = {
   district: '/models/district.glb',
@@ -56,7 +57,7 @@ function trimeshOf(root: THREE.Object3D): { vertices: Float32Array; indices: Uin
   return { vertices: new Float32Array(vertices), indices: new Uint32Array(indices) };
 }
 
-/** Static scenery: ground (trimesh collider), roads, landscaping, tower, kiosks, gate, backdrop buildings. */
+/** Static scenery: ground (trimesh collider), roads, landscaping, tower, kiosks, gate, backdrop buildings. Clicking the tower or a kiosk travels there. */
 export function District() {
   const district = useModel(MODEL_URLS.district);
   const tower = useModel(MODEL_URLS.tower);
@@ -96,7 +97,9 @@ export function District() {
       ...KIOSKS.map((k): [string, Dissolvable] => [`kiosk-${k.section}`, makeDissolvable(kiosks.scene.getObjectByName(`kiosk_${k.section}`)!, { cloneMaterials: true })]),
       ...backdrop.map((b, i): [string, Dissolvable] => [`building-${i}`, makeDissolvable(b, { cloneMaterials: true })]),
     ];
-    return { scene, ground, groundShape, backdrop, dissolvables };
+    // Each kiosk renders as its own clickable object (R9); the gate stays in the shared kiosks scene.
+    const kioskNodes = KIOSKS.map((k) => ({ section: k.section, node: kiosks.scene.getObjectByName(`kiosk_${k.section}`)! }));
+    return { scene, ground, groundShape, backdrop, dissolvables, kioskNodes };
   }, [district, tower, kiosks, buildings]);
 
   useEffect(() => {
@@ -111,8 +114,15 @@ export function District() {
       </RigidBody>
       <primitive object={parts.ground} />
       <primitive object={parts.scene} />
-      <primitive object={tower.scene} position={[TOWER.center[0], 0, TOWER.center[1]]} />
+      <Selectable selection={{ section: 'experience' }}>
+        <primitive object={tower.scene} position={[TOWER.center[0], 0, TOWER.center[1]]} />
+      </Selectable>
       <primitive object={kiosks.scene} />
+      {parts.kioskNodes.map(({ section, node }) => (
+        <Selectable key={section} selection={{ section }}>
+          <primitive object={node} />
+        </Selectable>
+      ))}
       {parts.backdrop.map((b, i) => (
         <primitive key={i} object={b} />
       ))}
