@@ -8,3 +8,4 @@ models-export
 *.log
 assets/build
 __pycache__
+.context/compound-engineering/
