@@ -434,3 +434,46 @@ describe('city blocks (U4)', () => {
     for (const l of LAMPS) for (const [i, b] of BUILDINGS.entries()) expect(pointGap(b, [l.position[0], l.position[2]]), `lamp vs building-${i}`).toBeGreaterThan(1);
   });
 });
+
+describe('trees (U6)', () => {
+  const street = TREES.filter((t) => t.pit);
+  const park = TREES.filter((t) => !t.pit);
+  const near = (t: (typeof TREES)[number], x: number, z: number, d: number) => Math.hypot(t.position[0] - x, t.position[2] - z) < d;
+
+  it('lines the streets with trees in sidewalk pits, on the side away from the camera', () => {
+    expect(street.length).toBeGreaterThanOrEqual(20);
+    for (const t of street) {
+      const [x, , z] = t.position;
+      expect(onRoad(x, z), `${x},${z} on the road`).toBe(false);
+      expect(onRoad(x, z, ROADS.sidewalk), `${x},${z} on a sidewalk`).toBe(true);
+      // Far side: north of an east–west road, east of a north–south road.
+      const onNS = Math.abs(Math.abs(x) - ROADS.loop.halfX) < ROADS.width || Math.abs(x - ROADS.crossStreetX) < ROADS.width;
+      const onEW = Math.abs(Math.abs(z) - ROADS.loop.halfZ) < ROADS.width;
+      if (onEW) expect(z < (z > 0 ? ROADS.loop.halfZ : -ROADS.loop.halfZ), `${x},${z} north of its road`).toBe(true);
+      if (onNS && !onEW) {
+        const roadX = Math.abs(x - ROADS.crossStreetX) < ROADS.width ? ROADS.crossStreetX : Math.sign(x) * ROADS.loop.halfX;
+        expect(x > roadX, `${x},${z} east of its road`).toBe(true);
+      }
+    }
+  });
+
+  it('keeps street trees clear of lamps, gate pillars, billboard boards, and stops', () => {
+    for (const t of street) {
+      for (const l of LAMPS) expect(near(t, l.position[0], l.position[2], 3), 'lamp').toBe(false);
+      for (const g of SECTION_GATES) for (const side of [-1, 1]) expect(near(t, ...gatePoint(g, side * g.halfSpan, 0), 3), 'gate').toBe(false);
+      for (const s of ROADSIDE_SLOTS) expect(near(t, s.position[0], s.position[1], ROADSIDE_FRAME.width / 2 + 1.5), s.key).toBe(false);
+      for (const zone of ZONES) expect(near(t, zone.center[0], zone.center[1], zone.radius + 1), zone.name).toBe(false);
+    }
+  });
+
+  it('gathers park trees in clusters inside the park pockets, off the pond, props, and flower beds', () => {
+    expect(park.length).toBeGreaterThanOrEqual(15);
+    for (const t of park) {
+      const [x, , z] = t.position;
+      expect(PARK_POCKETS.some((p) => Math.abs(x - p.center[0]) < p.size[0] / 2 && Math.abs(z - p.center[1]) < p.size[1] / 2), `${x},${z} in a pocket`).toBe(true);
+      expect(pondNorm(x, z)).toBeGreaterThan(1.25);
+      for (const p of PROPS) expect(near(t, p.position[0], p.position[2], 2.5), p.id).toBe(false);
+      for (const bed of FLOWER_BEDS) expect(Math.abs(x - bed.center[0]) < bed.size[0] / 2 + 1.5 && Math.abs(z - bed.center[1]) < bed.size[1] / 2 + 1.5).toBe(false);
+    }
+  });
+});

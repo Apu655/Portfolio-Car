@@ -375,6 +375,8 @@ export interface StaticPlacement {
   rotationY: number;
   scale: number;
   variant: number;
+  /** Street trees stand in a sidewalk pit. */
+  pit?: boolean;
 }
 
 /** Point lies on a road's paved width (with optional margin). */
@@ -562,28 +564,7 @@ export const BUILDINGS: Building[] = (() => {
 /** Ground point lies within `margin` of a building's footprint. */
 const nearBuilding = (x: number, z: number, margin: number) => BUILDINGS.some((b) => inRect(x, z, b.center, [b.half[0] * 2, b.half[1] * 2], margin));
 
-export const TREES: StaticPlacement[] = (() => {
-  const random = seededRandom(2026);
-  const result: StaticPlacement[] = [];
-  const blocked = (x: number, z: number) =>
-    onRoad(x, z, 2.5) ||
-    pondNorm(x, z) < 1.25 ||
-    (Math.abs(x - TOWER.center[0]) < TOWER.halfSize + 6 && Math.abs(z - TOWER.center[1]) < TOWER.halfSize + 6) ||
-    Math.hypot(x - BILLBOARD.position[0], z - BILLBOARD.position[2]) < 16 ||
-    PROPS.some((p) => Math.hypot(x - p.position[0], z - p.position[2]) < 3) ||
-    ZONES.some((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) < zone.radius + 3) ||
-    inPlaza(x, z, 2.5) ||
-    onPitch(x, z, 6) ||
-    nearStructure(x, z) ||
-    nearBuilding(x, z, 2.5);
-  for (let i = 0; i < 260 && result.length < 90; i++) {
-    const x = (random() * 2 - 1) * (WORLD_HALF - 18);
-    const z = (random() * 2 - 1) * (WORLD_HALF - 18);
-    if (blocked(x, z)) continue;
-    result.push({ position: [x, 0, z], rotationY: random() * Math.PI * 2, scale: 0.85 + random() * 0.45, variant: Math.floor(random() * 3) });
-  }
-  return result;
-})();
+
 
 /** Streetlights along the loop's inner and outer sidewalks. */
 export const LAMPS: StaticPlacement[] = (() => {
@@ -604,4 +585,68 @@ export const LAMPS: StaticPlacement[] = (() => {
       !nearStructure(l.position[0], l.position[2]) &&
       !nearBuilding(l.position[0], l.position[2], 1.5),
   );
+})();
+
+/**
+ * Trees placed with intent (KTD9 of the golden-hour city plan): street trees in sidewalk pits on the side of each
+ * road away from the camera (north of east–west roads, east of north–south ones), so they never hide the car,
+ * and clusters in the park pockets.
+ */
+export const TREES: StaticPlacement[] = (() => {
+  const random = seededRandom(2026);
+  const result: StaticPlacement[] = [];
+  const { halfX, halfZ, cornerRadius } = ROADS.loop;
+  const kerbToPit = ROADS.width / 2 + ROADS.sidewalk / 2;
+  const clearOfLamps = (x: number, z: number) => LAMPS.every((l) => Math.hypot(x - l.position[0], z - l.position[2]) >= 3);
+  const streetBlocked = (x: number, z: number) =>
+    !clearOfLamps(x, z) ||
+    nearStructure(x, z) ||
+    ROADSIDE_SLOTS.some((slot) => Math.hypot(x - slot.position[0], z - slot.position[1]) < ROADSIDE_FRAME.width / 2 + 1.5) ||
+    ZONES.some((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) < zone.radius + 1) ||
+    PROPS.some((p) => Math.hypot(x - p.position[0], z - p.position[2]) < 2.5) ||
+    inPlaza(x, z, 0.5) ||
+    nearBuilding(x, z, 1) ||
+    Math.hypot(x - BILLBOARD.position[0], z - BILLBOARD.position[2]) < 14;
+  const street = (x: number, z: number) => {
+    if (streetBlocked(x, z)) return;
+    result.push({ position: [x, 0, z], rotationY: random() * Math.PI * 2, scale: 0.72 + random() * 0.14, variant: Math.floor(random() * 3), pit: true });
+  };
+  // Along the straights only, clear of the corners and the cross-street junctions.
+  const straightX = halfX - cornerRadius - 4;
+  const straightZ = halfZ - cornerRadius - 4;
+  for (let x = -straightX; x <= straightX; x += 8) {
+    if (Math.abs(x - ROADS.crossStreetX) < ROADS.width + 3) continue;
+    street(x, -halfZ - kerbToPit); // north road: its north side
+    street(x, halfZ - kerbToPit); // south road: its north side
+  }
+  for (let z = -straightZ; z <= straightZ; z += 8) {
+    street(halfX + kerbToPit, z); // east road: its east side
+    street(-halfX + kerbToPit, z); // west road: its east side
+  }
+  for (let z = -halfZ + ROADS.width + 4; z <= halfZ - ROADS.width - 4; z += 8) street(ROADS.crossStreetX + kerbToPit, z);
+
+  // Park clusters: a few trees around each seeded spot in the pond and bench pockets.
+  const parkBlocked = (x: number, z: number) =>
+    pondNorm(x, z) < 1.3 ||
+    PROPS.some((p) => Math.hypot(x - p.position[0], z - p.position[2]) < 2.5) ||
+    FLOWER_BEDS.some((bed) => inRect(x, z, bed.center, bed.size, 1.5)) ||
+    onRoad(x, z, 2) ||
+    inPlaza(x, z, 1) ||
+    onPitch(x, z, 3) ||
+    nearStructure(x, z) ||
+    nearBuilding(x, z, 1.5) ||
+    result.some((t) => Math.hypot(x - t.position[0], z - t.position[2]) < 2.6);
+  for (const pocket of PARK_POCKETS.filter((p) => p.name === 'pond' || p.name === 'benches')) {
+    for (let cluster = 0; cluster < 12; cluster++) {
+      const cx = pocket.center[0] + (random() - 0.5) * pocket.size[0];
+      const cz = pocket.center[1] + (random() - 0.5) * pocket.size[1];
+      for (let k = 0; k < 5; k++) {
+        const x = cx + (random() - 0.5) * 6;
+        const z = cz + (random() - 0.5) * 6;
+        if (!inRect(x, z, pocket.center, pocket.size, -0.5) || parkBlocked(x, z)) continue;
+        result.push({ position: [x, 0, z], rotationY: random() * Math.PI * 2, scale: 0.85 + random() * 0.4, variant: Math.floor(random() * 3) });
+      }
+    }
+  }
+  return result;
 })();

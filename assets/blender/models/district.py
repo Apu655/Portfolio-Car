@@ -207,25 +207,45 @@ def build(layout):
     kit.join(yellow, "markings_yellow")
     kit.join(marks, "markings_white")
 
-    # Trees: trunk plus clustered soft canopies in three greens.
-    trunks, canopies = [], {"leaf_a": [], "leaf_b": [], "leaf_c": []}
+    # Trees (KTD9): a trunk and a layered canopy, a darker shaded underside under sunlit upper clumps, in three
+    # greens. Street trees stand in a soil pit with a low kerb.
+    soil = kit.mat("tree_pit", "#4a3b2e", roughness=1.0)
+    shades = {
+        "leaf_a": kit.mat("leaf_a_shade", "#355f2f", roughness=0.92),
+        "leaf_b": kit.mat("leaf_b_shade", "#4d7436", roughness=0.92),
+        "leaf_c": kit.mat("leaf_c_shade", "#62803a", roughness=0.92),
+    }
+    trunks, pits = [], []
+    canopies = {key: [] for key in ("leaf_a", "leaf_b", "leaf_c")}
+    undersides = {key: [] for key in ("leaf_a", "leaf_b", "leaf_c")}
     for idx, t in enumerate(layout["TREES"]):
         x, _, z = t["position"]
         s = t["scale"]
-        trunks.append(kit.cylinder(f"trunk{idx}", 0.22 * s, 3.2 * s, x, 0, z, None, vertices=8, top_radius=0.14 * s))
+        if t.get("pit"):
+            pits.append(kit.box(f"pit{idx}", 1.5, 0.17, 1.5, x, 0, z, None, bevel=0.03))
+        trunks.append(kit.cylinder(f"trunk{idx}", 0.2 * s, 2.8 * s, x, 0, z, None, vertices=8, top_radius=0.13 * s))
         key = ("leaf_a", "leaf_b", "leaf_c")[t["variant"]]
-        for c in range(3):
-            ox, oz = rnd.uniform(-0.8, 0.8) * s, rnd.uniform(-0.8, 0.8) * s
-            r = rnd.uniform(1.3, 1.8) * s
-            canopies[key].append(kit.ico(f"canopy{idx}_{c}", r, x + ox, (3.6 + c * 0.7) * s, z + oz, None, subdivisions=2, scale=(1, 0.85, 1)))
+        # A wide, low underside clump, then three or four sunlit clumps on top of it.
+        undersides[key].append(kit.ico(f"under{idx}", 1.75 * s, x, 3.15 * s, z, None, subdivisions=2, scale=(1, 0.6, 1), smooth_angle=80))
+        for c in range(rnd.randint(3, 4)):
+            a = rnd.uniform(0, math.tau)
+            d = rnd.uniform(0.3, 0.9) * s
+            r = rnd.uniform(1.0, 1.35) * s
+            canopies[key].append(kit.ico(f"canopy{idx}_{c}", r, x + math.cos(a) * d, (3.7 + c * 0.35) * s, z + math.sin(a) * d, None, subdivisions=2, scale=(1, 0.85, 1), smooth_angle=80))
     for o in trunks:
         o.data.materials.append(m["bark"])
     kit.join(trunks, "tree_trunks")
-    for key, objs in canopies.items():
-        for o in objs:
+    for o in pits:
+        o.data.materials.append(soil)
+    if pits:
+        kit.join(pits, "tree_pits")
+    for key in canopies:
+        for o in canopies[key]:
             o.data.materials.append(m[key])
-        if objs:
-            kit.join(objs, f"tree_{key}")
+        for o in undersides[key]:
+            o.data.materials.append(shades[key])
+        if canopies[key]:
+            kit.join(canopies[key] + undersides[key], f"tree_{key}")
 
     # Streetlights: pole, curved arm, glowing head.
     lamp_parts, heads = [], []
@@ -237,7 +257,9 @@ def build(layout):
         lamp_parts.append(kit.cylinder(f"pole_base{idx}", 0.22, 0.5, x, 0, z, None, vertices=10, bevel=0.04))
         arm = kit.box(f"arm{idx}", 0.1, 0.1, 1.6, x + fx * 0.75, 6.25, z + fz * 0.75, None, rot=r)
         lamp_parts.append(arm)
-        heads.append(kit.box(f"lamp{idx}", 0.5, 0.2, 0.8, x + fx * 1.55, 6.0, z + fz * 1.55, None, bevel=0.06, rot=r))
+        # A dark housing with the glowing bulb panel set into its underside.
+        lamp_parts.append(kit.box(f"housing{idx}", 0.56, 0.24, 0.9, x + fx * 1.55, 6.02, z + fz * 1.55, None, bevel=0.06, rot=r))
+        heads.append(kit.box(f"lamp{idx}", 0.42, 0.06, 0.72, x + fx * 1.55, 5.97, z + fz * 1.55, None, bevel=0.02, rot=r))
     for o in lamp_parts:
         o.data.materials.append(m["metal"])
     for o in heads:
