@@ -4,10 +4,12 @@ import { App } from './App';
 import { initPortfolio } from './initPortfolio';
 import type { Capabilities } from './lib/capabilities';
 import { usePortfolio } from './state/store';
+import { zoneFor, zoneSelection } from './world/district/layout';
+import type { TowerSection } from './world/events';
 
 // jsdom has no WebGL, so the canvas is replaced by a stub. Everything visitors read and click (HUD, prompts,
 // menu, info panel, quick view) is real DOM and runs unmocked. Entering a tower's zone is reported by the
-// scene through the store's setNearTower, so tests drive that same entry point.
+// scene through the store's setNearStop, so tests drive that same entry point.
 vi.mock('./world/World3D', () => ({ default: () => <div data-testid="world-3d" /> }));
 
 const capabilities: Capabilities = { webgl: true, softwareRenderer: false, reducedMotion: false };
@@ -20,7 +22,7 @@ function start(hash = '', caps: Partial<Capabilities> = {}) {
   Object.assign(capabilities, { webgl: true, softwareRenderer: false, reducedMotion: false }, caps);
   window.localStorage.clear();
   window.history.replaceState(null, '', `/${hash}`);
-  usePortfolio.setState({ nearTower: null });
+  usePortfolio.setState({ nearStop: null });
   initPortfolio();
   const user = userEvent.setup();
   render(<App />);
@@ -28,8 +30,12 @@ function start(hash = '', caps: Partial<Capabilities> = {}) {
 }
 
 const SLOW = { timeout: 3000 };
-const enterZone = (section: Parameters<ReturnType<typeof usePortfolio.getState>['setNearTower']>[0]) =>
-  act(() => usePortfolio.getState().setNearTower(section));
+/** Report the car inside a section's stop zone (or outside every zone), the way the scene does. */
+const enterZone = (section: TowerSection | null) =>
+  act(() => {
+    const zone = section ? zoneFor(section) : null;
+    usePortfolio.getState().setNearStop(zone ? { selection: zoneSelection(zone), name: zone.name, verb: zone.verb } : null);
+  });
 
 describe('landing', () => {
   it('opens the 3D city first with a welcome card and the résumé one click away', async () => {
@@ -94,7 +100,7 @@ describe('driving up to a tower and pressing E', () => {
     expect(screen.queryByText(/Press/)).not.toBeInTheDocument();
 
     await enterZone('experience');
-    expect(screen.getByRole('status')).toHaveTextContent('Press E to open the Career Tower');
+    expect(screen.getByRole('status')).toHaveTextContent('Press E to enter the Career Tower');
     await user.keyboard('e');
 
     const panel = screen.getByRole('dialog', { name: 'Software Engineer – AI' });
@@ -102,6 +108,33 @@ describe('driving up to a tower and pressing E', () => {
     expect(usePortfolio.getState().travel).toBe(false); // the car stays where it parked
     expect(window.location.hash).toBe('#/3d/experience');
     expect(screen.queryByText(/Press E/)).not.toBeInTheDocument(); // prompt hides while the panel is open
+  });
+
+  it('at the robot, the prompt invites you to talk, and E opens the SeCAREly paper (AE1)', async () => {
+    const user = start('#/3d');
+    await enterZone('research');
+    expect(screen.getByRole('status')).toHaveTextContent('Press E to talk to the SeCAREly robot');
+    await user.keyboard('e');
+    expect(usePortfolio.getState().selection).toEqual({ section: 'research', itemId: 'secarely' });
+    expect(usePortfolio.getState().travel).toBe(false);
+    expect(window.location.hash).toBe('#/3d/research/secarely');
+  });
+
+  it('at the Projects Hall, E opens the whole project list', async () => {
+    const user = start('#/3d');
+    await enterZone('projects');
+    expect(screen.getByRole('status')).toHaveTextContent('Press E to enter the Projects Hall');
+    await user.keyboard('e');
+    expect(usePortfolio.getState().selection).toEqual({ section: 'projects' });
+    expect(screen.getByRole('dialog', { name: 'Projects' })).toBeInTheDocument();
+  });
+
+  it('E does nothing while the menu is open', async () => {
+    const user = start('#/3d');
+    await enterZone('projects');
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.keyboard('e');
+    expect(usePortfolio.getState().panelOpen).toBe(false);
   });
 
   it('E does nothing outside a zone', async () => {
@@ -160,8 +193,8 @@ describe('fast travel menu', () => {
     const names = within(menu)
       .getAllByRole('button')
       .map((b) => b.textContent);
-    expect(names).toEqual(expect.arrayContaining(['Career Tower', 'Research kiosk', 'Projects kiosk', 'Education kiosk', 'Contact kiosk']));
-    await user.click(within(menu).getByRole('button', { name: 'Education kiosk' }));
+    expect(names).toEqual(expect.arrayContaining(['Career Tower', 'Research Road', 'Projects Hall', 'Campus', 'Contact kiosk']));
+    await user.click(within(menu).getByRole('button', { name: 'Campus' }));
 
     expect(screen.getByRole('dialog', { name: 'Education' })).toBeInTheDocument();
     expect(usePortfolio.getState().travel).toBe(true);
@@ -205,7 +238,7 @@ describe('leaving driving mode keeps your place', () => {
 
   it('quick view → 3D opens that tower’s panel', async () => {
     const user = start('#/basic');
-    await user.click(screen.getByRole('button', { name: 'Visit the Projects kiosk in 3D' }));
+    await user.click(screen.getByRole('button', { name: 'Visit the Projects Hall in 3D' }));
     expect(await screen.findByTestId('world-3d', {}, SLOW)).toBeInTheDocument();
     expect(await screen.findByRole('dialog', { name: 'Projects' })).toBeInTheDocument();
     expect(window.location.hash).toBe('#/3d/projects');

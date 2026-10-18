@@ -1,10 +1,18 @@
 import { create } from 'zustand';
-import { sameSelection, type Section, type Selection, type View } from './route';
+import { sameSelection, type Selection, type View } from './route';
 
 /** Length of each half of the view switch (fade out, then fade in). */
 export const VIEW_TRANSITION_MS = 450;
 
 export type TransitionPhase = 'idle' | 'leaving' | 'entering';
+
+/** The stop whose entrance zone the car is in: what E opens, and how the prompt names it. */
+export interface NearStop {
+  selection: Selection;
+  name: string;
+  /** "Press E to <verb> the <name>". */
+  verb: string;
+}
 
 export interface PortfolioState {
   view: View;
@@ -20,8 +28,8 @@ export interface PortfolioState {
   navToken: number;
   /** 3D view: whether the latest navigation should move the car to its destination (false when already there). */
   travel: boolean;
-  /** 3D view: the tower whose entrance zone the car is currently inside. */
-  nearTower: Exclude<Section, 'about'> | null;
+  /** 3D view: the stop whose entrance zone the car is currently inside. */
+  nearStop: NearStop | null;
   /** 3D view: the opening camera reveal is playing (driving input and the welcome card wait). */
   revealing: boolean;
   /** How the URL should record the latest change. */
@@ -42,7 +50,7 @@ export interface PortfolioState {
   applyRoute(view: View, selection: Selection | null): void;
   dismissNotice(): void;
   setHovered(id: string | null): void;
-  setNearTower(section: Exclude<Section, 'about'> | null): void;
+  setNearStop(stop: NearStop | null): void;
   setRevealing(revealing: boolean): void;
 }
 
@@ -59,7 +67,7 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
   transition: 'idle',
   navToken: 0,
   travel: true,
-  nearTower: null,
+  nearStop: null,
   revealing: false,
   historyMode: 'replace',
   focusPanel: false,
@@ -155,8 +163,10 @@ export const usePortfolio = create<PortfolioState>()((set, get) => ({
     if (get().hovered !== hovered) set({ hovered });
   },
 
-  setNearTower: (nearTower) => {
-    if (get().nearTower !== nearTower) set({ nearTower });
+  setNearStop: (nearStop) => {
+    const current = get().nearStop;
+    if (current === nearStop || (current && nearStop && current.name === nearStop.name && sameSelection(current.selection, nearStop.selection))) return;
+    set({ nearStop });
   },
 
   setRevealing: (revealing) => {

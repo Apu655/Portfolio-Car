@@ -4,7 +4,7 @@ import { CuboidCollider, RigidBody, useBeforePhysicsStep, useRapier, type Rapier
 import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
 import { carRefs } from '../carRef';
-import { SPAWN, zoneAt, zoneFor, type Zone } from '../district/layout';
+import { SPAWN, zoneAt, zoneFor, zoneSelection, type Zone } from '../district/layout';
 import { combineInputs, readKeyboardInput, touchActions, touchInput, touchStick, useDriveKeys, wantsRecover } from '../drive/input';
 import { stickToDrive } from '../drive/screenSteer';
 import { emit, telemetry } from '../events';
@@ -51,7 +51,7 @@ export function Car() {
   /** After the reveal, ignore driving keys until they are all released (the skip key must not launch the car). */
   const inputArmed = useRef(true);
   const recoverHeld = useRef(false);
-  const lastZone = useRef<Zone['section'] | null>(null);
+  const lastZone = useRef<Zone | null>(null);
   const water = useMemo(() => new WaterContact(), []);
   const navToken = usePortfolio((s) => s.navToken);
 
@@ -163,12 +163,12 @@ export function Car() {
     telemetry.inWater = inWater;
 
     // Entrance zones drive the E prompt.
-    const zone = zoneAt(p.x, p.z)?.section ?? null;
+    const zone = zoneAt(p.x, p.z);
     if (zone !== lastZone.current) {
-      if (lastZone.current) emit({ type: 'zoneExit', section: lastZone.current });
-      if (zone) emit({ type: 'zoneEnter', section: zone });
+      if (lastZone.current) emit({ type: 'zoneExit', section: lastZone.current.section });
+      if (zone) emit({ type: 'zoneEnter', section: zone.section });
       lastZone.current = zone;
-      state.setNearTower(zone);
+      state.setNearStop(zone ? { selection: zoneSelection(zone), name: zone.name, verb: zone.verb } : null);
     }
   });
 

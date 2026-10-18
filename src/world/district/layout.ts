@@ -26,6 +26,8 @@ export interface Zone {
   name: string;
   /** The item the stop opens, when it stands for one item rather than its whole section (the SeCAREly robot). */
   itemId?: string;
+  /** What the E prompt invites you to do: "Press E to <verb> the <name>". */
+  verb: string;
   center: Vec2;
   radius: number;
   /** Where fast travel parks the car (on the lane beside the zone) and which way it faces. */
@@ -46,6 +48,7 @@ export const TOWER = {
 const careerZone: Zone = {
   section: 'experience',
   name: 'Career Tower',
+  verb: 'enter',
   center: [2.5, -18],
   radius: 6,
   parking: { position: [2.5, -14], heading: HEADING.north },
@@ -89,6 +92,7 @@ const robotZone: Zone = {
   section: 'research',
   name: 'SeCAREly robot',
   itemId: 'secarely',
+  verb: 'talk to',
   center: ROBOT.position,
   radius: 7,
   parking: { position: [67.5, 28], heading: HEADING.north },
@@ -99,6 +103,7 @@ const robotZone: Zone = {
 const projectsZone: Zone = {
   section: 'projects',
   name: 'Projects Hall',
+  verb: 'enter',
   center: [PROJECTS_HALL.center[0], -57.5],
   radius: 6,
   parking: { position: [PROJECTS_HALL.center[0] + 3, -57.5], heading: HEADING.west },
@@ -109,6 +114,7 @@ const projectsZone: Zone = {
 const campusZone: Zone = {
   section: 'education',
   name: 'Campus',
+  verb: 'visit',
   center: [-67.5, CAMPUS.center[1]],
   radius: 6,
   parking: { position: [-67.5, CAMPUS.center[1] - 4], heading: HEADING.south },
@@ -119,6 +125,7 @@ const campusZone: Zone = {
 const contactZone: Zone = {
   section: 'contact',
   name: 'Contact kiosk',
+  verb: 'open',
   center: [CONTACT_KIOSK.position[0], 52.5],
   radius: 5.5,
   parking: { position: [CONTACT_KIOSK.position[0] + 3, 52.5], heading: HEADING.east },
@@ -133,6 +140,11 @@ export const ZONES: Zone[] = [careerZone, ...STOPS];
 
 export function zoneFor(section: TowerSection): Zone {
   return ZONES.find((z) => z.section === section)!;
+}
+
+/** What a stop opens: its item when it stands for one (KTD5), else its section. */
+export function zoneSelection(zone: Zone): { section: TowerSection; itemId?: string } {
+  return zone.itemId ? { section: zone.section, itemId: zone.itemId } : { section: zone.section };
 }
 
 /** The zone containing (x, z), if any. */

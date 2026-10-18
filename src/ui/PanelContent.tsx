@@ -8,9 +8,9 @@ import { usePortfolio } from '../state/store';
 /** What each stop is called in the HUD, menu, and quick view. The employer appears only inside the Career panel. */
 export const TOWER_NAMES: Record<Exclude<Selection['section'], 'about'>, string> = {
   experience: 'Career Tower',
-  research: 'Research kiosk',
-  projects: 'Projects kiosk',
-  education: 'Education kiosk',
+  research: 'Research Road',
+  projects: 'Projects Hall',
+  education: 'Campus',
   contact: 'Contact kiosk',
 };
 

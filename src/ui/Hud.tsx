@@ -5,7 +5,6 @@ import { AudioControls } from './AudioControls';
 import { DayDial } from './DayDial';
 import { Minimap } from './Minimap';
 import { NAV_MENU_ID, NavMenu } from './NavMenu';
-import { TOWER_NAMES } from './PanelContent';
 import { TouchControls, useCoarsePointer } from './TouchControls';
 
 const WELCOME_KEY = 'portfolio.welcome.dismissed';
@@ -106,7 +105,7 @@ function WelcomeCard({ touch }: { touch: boolean }) {
       <p className="eyebrow">Welcome to the Career District</p>
       <h2 id="welcome-title">{profile.name}</h2>
       <p className="welcome__headline">{profile.headline}</p>
-      <p>Drive around the district: the Career Tower and four kiosks hold my story. Pull into a glowing zone to open one, and knock over whatever you like on the way.</p>
+      <p>Every section has its own road: drive through its gate to read its billboards and reach its stop. Pull into a glowing zone to open one, and knock over whatever you like on the way.</p>
       <ControlsList touch={touch} />
       <div className="panel-actions">
         <button type="button" className="primary" onClick={dismiss}>
@@ -131,20 +130,20 @@ function RevealHint() {
 
 /** "Press E" prompt while the car sits in a stop's entrance zone. */
 function InteractPrompt({ touch }: { touch: boolean }) {
-  const nearTower = usePortfolio((s) => s.nearTower);
+  const stop = usePortfolio((s) => s.nearStop);
   const panelOpen = usePortfolio((s) => s.panelOpen);
   const navigate = usePortfolio((s) => s.navigate);
-  if (!nearTower || panelOpen) return null;
-  const name = TOWER_NAMES[nearTower];
+  if (!stop || panelOpen) return null;
+  const { name, verb } = stop;
   return (
     <div className="interact-prompt" role="status">
       {touch ? (
-        <button type="button" className="primary" onClick={() => navigate({ section: nearTower }, { travel: false })}>
-          Open {name}
+        <button type="button" className="primary" onClick={() => navigate(stop.selection, { travel: false })}>
+          {verb[0].toUpperCase() + verb.slice(1)} the {name}
         </button>
       ) : (
         <p>
-          Press <kbd>E</kbd> to open the <strong>{name}</strong>
+          Press <kbd>E</kbd> to {verb} the <strong>{name}</strong>
         </p>
       )}
     </div>

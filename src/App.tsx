@@ -49,8 +49,8 @@ function useGlobalShortcuts(): void {
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
       const key = event.key.toLowerCase();
       if (key === 'm') state.setMenuOpen(!state.menuOpen);
-      if (key === 'e' && state.nearTower && !state.panelOpen && !state.menuOpen) {
-        state.navigate({ section: state.nearTower }, { travel: false });
+      if (key === 'e' && state.nearStop && !state.panelOpen && !state.menuOpen) {
+        state.navigate(state.nearStop.selection, { travel: false });
       }
     };
     window.addEventListener('keydown', onKey);
