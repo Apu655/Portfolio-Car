@@ -1,4 +1,5 @@
 import { distanceToCollider, STATIC_COLLIDERS } from './colliders';
+import { TO_CAMERA } from '../camera/framing';
 import { BILLBOARD, onRoad, POND, pondDepth, PROPS, SPAWN, TREES, ZONES, zoneAt, zoneFor } from './layout';
 
 const solids = STATIC_COLLIDERS.filter((c) => !c.name.startsWith('wall-'));
@@ -59,5 +60,14 @@ describe('district layout', () => {
     expect(new Set(bricks.map((b) => b.position[1].toFixed(2))).size).toBe(6);
     expect(PROPS.filter((p) => p.kind === 'cone')).toHaveLength(8);
     expect(new Set(PROPS.map((p) => p.id)).size).toBe(PROPS.length);
+  });
+
+  it('turns the name billboard to face the fixed camera (R13)', () => {
+    // The board's face points along its local +Z, rotated by rotationY.
+    const front = [Math.sin(BILLBOARD.rotationY), Math.cos(BILLBOARD.rotationY)];
+    const toCamera = [TO_CAMERA[0], TO_CAMERA[2]];
+    const length = Math.hypot(toCamera[0], toCamera[1]);
+    const cos = (front[0] * toCamera[0] + front[1] * toCamera[1]) / length;
+    expect(cos).toBeGreaterThan(Math.cos((10 * Math.PI) / 180));
   });
 });

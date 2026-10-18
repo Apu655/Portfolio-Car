@@ -96,11 +96,25 @@ const inPlaza = (x: number, z: number, margin: number) =>
 /** Shallow pond in the park (west half of the loop). */
 export const POND = { center: [-35, -6] as Vec2, radiusX: 14, radiusZ: 10, depth: 0.7, shore: 3.5 };
 
-/** Bulb-marquee name sign, ahead and to the right of the spawn point, turned toward the arriving car. */
+/**
+ * The fixed camera view (KTD1 of the isometric camera plan): the camera always looks toward the north-east, from
+ * the south-west, about 48° down. From here the Career Tower's west entrance and the kiosks' south faces show.
+ */
+export const VIEW = {
+  /** Heading the camera looks along (same convention as HEADING): north-east. */
+  heading: -Math.PI / 4,
+  /** Angle below the horizon, radians. */
+  elevation: (48 * Math.PI) / 180,
+  /** Vertical field of view, degrees: narrow, for gentle perspective. */
+  fov: 32,
+} as const;
+
+/** Bulb-marquee name sign, ahead and to the right of the spawn point, turned to face the fixed camera (R13). */
 export const BILLBOARD = {
   text: 'APU ISLAM',
   position: [8, 0, 76] as Vec3,
-  rotationY: Math.atan2(SPAWN.position[0] - 8, SPAWN.position[1] - 76) * 0.75,
+  // Its face (local +Z) points back along the view, toward the camera.
+  rotationY: VIEW.heading,
   width: 22,
   height: 13,
 };
@@ -256,15 +270,3 @@ export const BUILDING_HALF = [7, 8, 6.5, 7.5];
 /** Roof height of each backdrop building variant including its cap or crown, before per-instance scale. */
 export const BUILDING_HEIGHT = [31, 46, 26, 37];
 
-/**
- * The fixed camera view (KTD1 of the isometric camera plan): the camera always looks toward the north-east, from
- * the south-west, about 48° down. From here the Career Tower's west entrance and the kiosks' south faces show.
- */
-export const VIEW = {
-  /** Heading the camera looks along (same convention as HEADING): north-east. */
-  heading: -Math.PI / 4,
-  /** Angle below the horizon, radians. */
-  elevation: (48 * Math.PI) / 180,
-  /** Vertical field of view, degrees: narrow, for gentle perspective. */
-  fov: 32,
-} as const;
