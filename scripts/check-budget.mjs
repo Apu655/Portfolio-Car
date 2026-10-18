@@ -41,7 +41,9 @@ if (all) {
   const js = files(assets, ['.js', '.css', '.wasm']);
   // Only one audio format is downloaded per browser, so count the larger of the two sets.
   const audioOneFormat = Math.max(bytes(files(`${root}public/audio`, ['.webm'])), bytes(files(`${root}public/audio`, ['.mp3'])));
-  check('total', gzipped(js) + models + audioOneFormat, BUDGETS.total);
+  // Logos and screenshots on the gate screens (already-compressed JPEG/PNG).
+  const showcase = bytes(files(`${root}public/showcase`, ['.jpg', '.png']));
+  check('total', gzipped(js) + models + audioOneFormat + showcase, BUDGETS.total);
 }
 
 process.exit(failed ? 1 : 0);
