@@ -35,13 +35,14 @@ describe('built models expose the runtime contract', () => {
     expect(billboard.materials.has('billboard_bulb')).toBe(true);
   });
 
-  it('kiosks: one kiosk per stand-in section, each with its own glow material, plus the city gate', () => {
+  it('kiosks: one kiosk per stand-in section, each with its own glow material, plus the five section gates', () => {
     const kiosks = gltf('kiosks');
     for (const k of KIOSKS) {
       expect(kiosks.nodes.has(`kiosk_${k.section}`)).toBe(true);
       expect(kiosks.materials.has(`kiosk_glow_${k.section}`)).toBe(true);
     }
-    expect(kiosks.nodes.has('city_gate')).toBe(true);
+    for (const section of ['experience', 'research', 'projects', 'education', 'contact']) expect(kiosks.nodes.has(`gate_${section}`), section).toBe(true);
+    expect(kiosks.nodes.has('city_gate')).toBe(false);
   });
 
   it('district: a drivable ground collider and night-lit streetlights', () => {

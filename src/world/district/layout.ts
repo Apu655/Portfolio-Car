@@ -119,8 +119,57 @@ export const BILLBOARD = {
   height: 13,
 };
 
-/** Brass city-gate arch spanning the north road between the kiosks; pillars stand on the two sidewalks. */
-export const GATE = { x: -30, pillarsZ: [-48.5, -61.5] as Vec2, height: 8.5, pillarHalf: 0.8 };
+/** Map and gate letters for each section: W work experience, R research, P projects, E education, C contact. */
+export const SECTION_LETTERS: Record<TowerSection, string> = { experience: 'W', research: 'R', projects: 'P', education: 'E', contact: 'C' };
+
+/** Each section's gate header text. */
+export const SECTION_TITLES: Record<TowerSection, string> = {
+  experience: 'Work experience',
+  research: 'Research',
+  projects: 'Projects',
+  education: 'Education',
+  contact: 'Contact',
+};
+
+/**
+ * Section gates: a stone-and-brass frame across the approach road to each stop, a few meters before its zone,
+ * carrying a lettered header and two screens that cycle through the section's items. Each gate's face (local +Z)
+ * points toward the fixed camera's side of the road; its pillars stand on the sidewalks at local x = ±halfSpan.
+ */
+export interface SectionGate {
+  section: TowerSection;
+  center: Vec2;
+  rotationY: number;
+  halfSpan: number;
+}
+
+/** Gate geometry in the gate's own frame (meters; y up from the ground, x across the road, z toward the face). */
+export const GATE_FRAME = {
+  pillarHalf: 0.8,
+  pillarHeight: 9.4,
+  beamBottom: 6.2,
+  beamTop: 9.4,
+  /** Screens lean back (top away from the road) so the high fixed camera sees them nearly face-on. */
+  screen: { width: 5.2, height: 2.9, centerY: 7.8, offsetX: 2.85, z: 0.95, tilt: (32 * Math.PI) / 180 },
+  header: { width: 5.4, height: 1.3, centerY: 10.35, z: 0.45, tilt: (18 * Math.PI) / 180 },
+} as const;
+
+export const SECTION_GATES: SectionGate[] = [
+  // Across the cross street, south of the Career Tower zone, facing south.
+  { section: 'experience', center: [0, -6], rotationY: 0, halfSpan: 6.5 },
+  // Across the north road, west of each kiosk zone, facing west.
+  { section: 'research', center: [36, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
+  { section: 'projects', center: [7, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
+  { section: 'education', center: [-24, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
+  { section: 'contact', center: [-54, -55], rotationY: -Math.PI / 2, halfSpan: 6.5 },
+];
+
+/** World position of a point given in a gate's own frame. */
+export function gatePoint(gate: SectionGate, x: number, z: number): Vec2 {
+  const cos = Math.cos(gate.rotationY);
+  const sin = Math.sin(gate.rotationY);
+  return [gate.center[0] + x * cos + z * sin, gate.center[1] - x * sin + z * cos];
+}
 
 /** Point on the pond surface ellipse test: >1 outside, <1 inside. */
 export function pondNorm(x: number, z: number): number {

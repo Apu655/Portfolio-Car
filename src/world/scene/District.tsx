@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei';
 import { CuboidCollider, CylinderCollider, RigidBody, TrimeshCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
-import { BUILDINGS, KIOSKS, TOWER } from '../district/layout';
+import { BUILDINGS, KIOSKS, SECTION_GATES, TOWER } from '../district/layout';
 import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
 import { Selectable } from './Selectable';
 
@@ -93,11 +93,11 @@ export function District() {
     // materials, so they get their own copies; the tower is a single instance and is patched in place.
     const dissolvables: Array<[string, Dissolvable]> = [
       ['tower', makeDissolvable(tower.scene, { cloneMaterials: false })],
-      ['gate', makeDissolvable(kiosks.scene.getObjectByName('city_gate')!, { cloneMaterials: true })],
+      ...SECTION_GATES.map((g): [string, Dissolvable] => [`gate-${g.section}`, makeDissolvable(kiosks.scene.getObjectByName(`gate_${g.section}`)!, { cloneMaterials: true })]),
       ...KIOSKS.map((k): [string, Dissolvable] => [`kiosk-${k.section}`, makeDissolvable(kiosks.scene.getObjectByName(`kiosk_${k.section}`)!, { cloneMaterials: true })]),
       ...backdrop.map((b, i): [string, Dissolvable] => [`building-${i}`, makeDissolvable(b, { cloneMaterials: true })]),
     ];
-    // Each kiosk renders as its own clickable object (R9); the gate stays in the shared kiosks scene.
+    // Each kiosk renders as its own clickable object; the section gates stay in the shared kiosks scene.
     const kioskNodes = KIOSKS.map((k) => ({ section: k.section, node: kiosks.scene.getObjectByName(`kiosk_${k.section}`)! }));
     return { scene, ground, groundShape, backdrop, dissolvables, kioskNodes };
   }, [district, tower, kiosks, buildings]);

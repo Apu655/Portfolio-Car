@@ -1,6 +1,6 @@
 import { distanceToCollider, STATIC_COLLIDERS } from './colliders';
 import { TO_CAMERA } from '../camera/framing';
-import { BILLBOARD, onRoad, POND, pondDepth, PROPS, SPAWN, TREES, ZONES, zoneAt, zoneFor } from './layout';
+import { BILLBOARD, gatePoint, onRoad, POND, pondDepth, PROPS, SECTION_GATES, SPAWN, TREES, ZONES, zoneAt, zoneFor } from './layout';
 
 const solids = STATIC_COLLIDERS.filter((c) => !c.name.startsWith('wall-'));
 
@@ -69,5 +69,26 @@ describe('district layout', () => {
     const length = Math.hypot(toCamera[0], toCamera[1]);
     const cos = (front[0] * toCamera[0] + front[1] * toCamera[1]) / length;
     expect(cos).toBeGreaterThan(Math.cos((10 * Math.PI) / 180));
+  });
+
+  it('puts a gate across the approach road a few meters before each stop', () => {
+    expect(SECTION_GATES.map((g) => g.section).sort()).toEqual(ZONES.map((z) => z.section).sort());
+    for (const g of SECTION_GATES) {
+      expect(onRoad(...g.center), g.section).toBe(true);
+      for (const side of [-1, 1]) expect(onRoad(...gatePoint(g, side * g.halfSpan, 0), -0.5), `${g.section} pillar`).toBe(false);
+      const zone = zoneFor(g.section);
+      const d = Math.hypot(g.center[0] - zone.center[0], g.center[1] - zone.center[1]);
+      expect(d, g.section).toBeGreaterThan(zone.radius);
+      expect(d, g.section).toBeLessThan(16);
+    }
+  });
+
+  it('turns every gate face toward the fixed camera', () => {
+    const toCamera = [TO_CAMERA[0], TO_CAMERA[2]];
+    const length = Math.hypot(toCamera[0], toCamera[1]);
+    for (const g of SECTION_GATES) {
+      const cos = (Math.sin(g.rotationY) * toCamera[0] + Math.cos(g.rotationY) * toCamera[1]) / length;
+      expect(cos, g.section).toBeGreaterThan(Math.cos((50 * Math.PI) / 180));
+    }
   });
 });

@@ -1,7 +1,7 @@
-"""City gate kiosks (Research, Projects, Education, Contact) and the brass gate arch, in district coordinates.
+"""Signpost kiosks (Research, Projects, Education, Contact) and the five section gates, in district coordinates.
 
 Each kiosk: a limestone plinth, brass frame, a glowing accent panel and an icon. Runtime contract: nodes
-`kiosk_<section>`; materials `kiosk_glow_<section>` glow brighter at night.
+`kiosk_<section>` and `gate_<section>`; materials `kiosk_glow_<section>` and `gate_lantern` glow brighter at night.
 """
 
 import math
@@ -57,27 +57,37 @@ def build(layout):
         mesh = kit.join(parts, f"kiosk_{section}_mesh")
         kit.parent(mesh, root)
 
-    # City gate: two limestone pillars on the sidewalks and a brass arch over the road with hanging lanterns.
-    g = layout["GATE"]
-    gx = g["x"]
-    za, zb = g["pillarsZ"]
-    gate = []
-    for z in (za, zb):
-        gate.append(kit.box(f"pillar{z}", 1.6, g["height"], 1.6, gx, 0, z, stone, bevel=0.15))
-        gate.append(kit.box(f"pillar_cap{z}", 2.0, 0.5, 2.0, gx, g["height"], z, brass, bevel=0.1))
-    span = abs(za - zb)
-    mid = (za + zb) / 2
-    steps = 16
-    for k in range(steps):
-        a0, a1 = math.pi * k / steps, math.pi * (k + 1) / steps
-        p0 = (mid + math.cos(a0) * span / 2, g["height"] - 0.2 + math.sin(a0) * 2.2)
-        p1 = (mid + math.cos(a1) * span / 2, g["height"] - 0.2 + math.sin(a1) * 2.2)
-        length = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
-        seg = kit.box(f"arch{k}", 0.5, 0.5, length + 0.05, gx, (p0[1] + p1[1]) / 2 - 0.25, (p0[0] + p1[0]) / 2, brass)
-        seg.rotation_euler[0] = math.atan2(p1[1] - p0[1], -(p1[0] - p0[0]))
-        gate.append(seg)
+    # Section gates: limestone pillars on the sidewalks, a navy frame with brass trim carrying two screens and a
+    # header sign (the screens and header faces are drawn at runtime), and two lanterns. Built around the origin
+    # in the gate's own frame, then parented to a root rotated to face the camera's side of the road.
+    f = layout["GATE_FRAME"]
+    navy = kit.mat("gate_frame", "#1b2233", roughness=0.5)
     lantern = kit.mat("gate_lantern", "#fff1d0", roughness=0.3, emission="#ffcf7a", strength=0.2)
-    for z in (mid - 3, mid + 3):
-        gate.append(kit.cylinder(f"chain{z}", 0.03, 1.2, gx, g["height"] - 0.4, z, brass, vertices=6))
-        gate.append(kit.sphere(f"lantern{z}", 0.35, gx, g["height"] - 0.6, z, lantern))
-    kit.join(gate, "city_gate")
+    for g in layout["SECTION_GATES"]:
+        root = kit.group(f"gate_{g['section']}", g["center"][0], 0, g["center"][1], g["rotationY"])
+        half = g["halfSpan"]
+        ph = f["pillarHalf"] * 2
+        beam_w = 2 * half
+        beam_h = f["beamTop"] - f["beamBottom"]
+        sc, hd = f["screen"], f["header"]
+        parts = []
+        for side in (-1, 1):
+            x = side * half
+            parts.append(kit.box(f"pillar{side}", ph, f["pillarHeight"], ph, x, 0, 0, stone, bevel=0.15))
+            parts.append(kit.box(f"pillar_cap{side}", ph + 0.4, 0.45, ph + 0.4, x, f["pillarHeight"], 0, brass, bevel=0.1))
+            parts.append(kit.box(f"pillar_band{side}", ph + 0.12, 0.3, ph + 0.12, x, f["beamBottom"] - 0.6, 0, brass, bevel=0.05))
+            parts.append(kit.cylinder(f"chain{side}", 0.03, 0.9, x - side * 1.3, f["beamBottom"] - 0.9, 0.2, brass, vertices=6))
+            parts.append(kit.sphere(f"lantern{side}", 0.3, x - side * 1.3, f["beamBottom"] - 1.1, 0.2, lantern))
+        # The beam frame behind the two screens, with brass rails top and bottom and a divider between screens.
+        parts.append(kit.box("beam", beam_w, beam_h, 0.5, 0, f["beamBottom"], 0, navy, bevel=0.08))
+        parts.append(kit.box("rail_top", beam_w + 0.3, 0.22, 0.62, 0, f["beamTop"] - 0.11, 0, brass, bevel=0.05))
+        parts.append(kit.box("rail_bottom", beam_w + 0.3, 0.22, 0.62, 0, f["beamBottom"] - 0.11, 0, brass, bevel=0.05))
+        parts.append(kit.box("divider", 0.18, beam_h - 0.2, 0.56, 0, f["beamBottom"] + 0.1, 0, brass, bevel=0.04))
+        # The header frame above the beam.
+        header_bottom = hd["centerY"] - hd["height"] / 2
+        parts.append(kit.box("header_frame", hd["width"] + 0.5, hd["height"] + 0.4, 0.4, 0, header_bottom - 0.2, 0, navy, bevel=0.08))
+        parts.append(kit.box("header_trim", hd["width"] + 0.7, 0.16, 0.5, 0, header_bottom + hd["height"] + 0.2, 0, brass, bevel=0.04))
+        for side in (-1, 1):
+            parts.append(kit.box(f"header_strut{side}", 0.2, header_bottom - f["beamTop"] + 0.2, 0.2, side * (hd["width"] / 2 - 0.4), f["beamTop"], 0, brass))
+        mesh = kit.join(parts, f"gate_{g['section']}_frame")
+        kit.parent(mesh, root, keep_transform=False)

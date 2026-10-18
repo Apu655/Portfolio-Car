@@ -16,6 +16,9 @@ import { Car } from './scene/Car';
 import { District } from './scene/District';
 import { LabelProjector } from './scene/LabelProjector';
 import { Props } from './scene/Props';
+import { SectionGates } from './scene/SectionGates';
+import { GateCaptionProjector } from './scene/GateCaptionProjector';
+import { GateCaptions } from '../ui/GateCaptions';
 import { Water } from './scene/Water';
 import { installTestHooks } from './testHooks';
 import { VIEW } from './district/layout';
@@ -81,6 +84,8 @@ export default function World3D() {
             </Physics>
             <Water />
             <Billboard />
+            <SectionGates />
+            <GateCaptionProjector />
             <FollowCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
             <OcclusionFade />
             {settings.postProcessing && <PostFx />}
@@ -91,6 +96,7 @@ export default function World3D() {
         </Canvas>
       </div>
       <WorldLabels />
+      <GateCaptions />
       <LoadingScreen />
     </>
   );

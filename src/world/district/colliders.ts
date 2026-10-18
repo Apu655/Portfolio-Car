@@ -1,6 +1,6 @@
 // Static colliders derived from the layout: everything solid the car can hit except the ground (a trimesh
 // from the district model) and the physical props (their own bodies).
-import { BILLBOARD, BUILDING_HALF, BUILDINGS, GATE, KIOSK_Z, KIOSKS, LAMPS, PLAZAS, TOWER, TREES, WORLD_HALF, type Vec3 } from './layout';
+import { BILLBOARD, BUILDING_HALF, BUILDINGS, GATE_FRAME, gatePoint, KIOSK_Z, KIOSKS, LAMPS, PLAZAS, SECTION_GATES, TOWER, TREES, WORLD_HALF, type Vec3 } from './layout';
 
 export interface BoxCollider {
   kind: 'box';
@@ -43,9 +43,14 @@ export const STATIC_COLLIDERS: StaticCollider[] = [
   box('tower-podium', TOWER.center[0], TOWER.center[1], TOWER.halfSize, 8.6, TOWER.halfSize),
   box('tower-shaft', TOWER.center[0], TOWER.center[1], 9.5, TOWER.height, 9.5),
   box('tower-canopy-posts', TOWER.center[0] - TOWER.halfSize - 3.6, TOWER.center[1], 0.2, 5.8, 3.8),
-  // Kiosks and the city gate.
+  // Kiosks and the section gates' pillars.
   ...KIOSKS.map((k) => box(`kiosk-${k.section}`, k.focus[0], KIOSK_Z, 1.7, 4.4, 0.8)),
-  ...GATE.pillarsZ.map((z, i) => box(`gate-pillar-${i}`, GATE.x, z, GATE.pillarHalf, GATE.height, GATE.pillarHalf)),
+  ...SECTION_GATES.flatMap((g) =>
+    [-1, 1].map((side) => {
+      const [x, z] = gatePoint(g, side * g.halfSpan, 0);
+      return box(`gate-${g.section}-pillar-${side}`, x, z, GATE_FRAME.pillarHalf, GATE_FRAME.pillarHeight, GATE_FRAME.pillarHalf, g.rotationY);
+    }),
+  ),
   // Billboard posts (the board itself is above car height).
   ...[-1, 1].map((side) => {
     const offset = (BILLBOARD.width / 3) * side;

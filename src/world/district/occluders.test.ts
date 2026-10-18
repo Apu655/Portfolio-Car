@@ -1,5 +1,5 @@
 import { framing, ZOOM } from '../camera/framing';
-import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, SPAWN, TOWER, type Vec3 } from './layout';
+import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, SECTION_GATES, SPAWN, TOWER, type Vec3 } from './layout';
 import { blockingOccluders, OCCLUDERS } from './occluders';
 
 /** Where the fixed-view camera stands when following a car at `car`. */
@@ -35,5 +35,11 @@ describe('what blocks the camera', () => {
       expect(o.half[0]).toBeGreaterThanOrEqual(BUILDING_HALF[b.variant] * b.scale);
       expect(o.center[1] + o.half[1]).toBeGreaterThanOrEqual(BUILDING_HEIGHT[b.variant] * b.scale);
     });
+  });
+
+  it('finds a section gate when the car has just driven through it', () => {
+    const gate = SECTION_GATES.find((g) => g.section === 'research')!;
+    const car: Vec3 = [gate.center[0] + 2, 1, gate.center[1] - 2]; // just past the gate, as seen from the south-west
+    expect(blockingOccluders(cameraFor(car), car)).toContain('gate-research');
   });
 });

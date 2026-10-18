@@ -1120,3 +1120,68 @@ kbd {
   font-size: 0.75rem;
   color: var(--text);
 }
+
+/* Captions under the nearest gate's screens. */
+.gate-captions {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.gate-caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(300px, 60vw);
+  will-change: transform;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  border-radius: 10px;
+  background: rgba(8, 10, 26, 0.82);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.3;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gate-caption {
+    transition: opacity 200ms;
+  }
+}
+
+.gate-caption__row {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 7px;
+}
+
+.gate-caption__row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gate-caption__row + .gate-caption__row {
+  border-top: 1px solid var(--border);
+}
+
+.gate-caption strong,
+.gate-caption span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.gate-caption strong {
+  font-size: 0.85rem;
+}
+
+.gate-caption span {
+  color: var(--text-muted);
+}

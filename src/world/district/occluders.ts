@@ -1,7 +1,7 @@
 // Things tall enough to hide the car from the fixed camera (KTD5 of the isometric camera plan): one box per
 // fadeable object, sized to what you see rather than to its collider, keyed by the name its scene object
 // registers under. The camera-to-car line is tested against these each frame.
-import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, GATE, KIOSK_Z, KIOSKS, TOWER, type Vec3 } from './layout';
+import { BILLBOARD, BUILDING_HALF, BUILDING_HEIGHT, BUILDINGS, GATE_FRAME, KIOSK_Z, KIOSKS, SECTION_GATES, TOWER, type Vec3 } from './layout';
 
 export interface Occluder {
   key: string;
@@ -26,7 +26,10 @@ const box = (key: string, x: number, z: number, hx: number, height: number, hz: 
 export const OCCLUDERS: Occluder[] = [
   box('tower', TOWER.center[0], TOWER.center[1], TOWER.halfSize, TOWER_TOP, TOWER.halfSize),
   box('billboard', BILLBOARD.position[0], BILLBOARD.position[2], BILLBOARD.width / 2 + 0.6, BILLBOARD_TOP, 0.8, BILLBOARD.rotationY),
-  box('gate', GATE.x, (GATE.pillarsZ[0] + GATE.pillarsZ[1]) / 2, GATE.pillarHalf + 0.4, GATE.height + 1, Math.abs(GATE.pillarsZ[0] - GATE.pillarsZ[1]) / 2 + 1),
+  // Section gates: the whole frame, up to the top of the header sign.
+  ...SECTION_GATES.map((g) =>
+    box(`gate-${g.section}`, g.center[0], g.center[1], g.halfSpan + GATE_FRAME.pillarHalf, GATE_FRAME.header.centerY + GATE_FRAME.header.height / 2 + 0.3, 2.2, g.rotationY),
+  ),
   ...KIOSKS.map((k) => box(`kiosk-${k.section}`, k.focus[0], KIOSK_Z, 1.8, 4.6, 0.9)),
   ...BUILDINGS.map((b, i) => {
     const half = BUILDING_HALF[b.variant] * b.scale;
