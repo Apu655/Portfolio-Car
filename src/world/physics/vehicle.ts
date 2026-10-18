@@ -21,9 +21,10 @@ export const CAR_TUNING = {
   wheelY: -0.05,
   wheelRadius: 0.36,
   suspensionRestLength: 0.32,
-  suspensionStiffness: 26,
-  suspensionCompression: 2.4,
-  suspensionRelaxation: 3.2,
+  suspensionStiffness: 24,
+  /** Firmer damping so the body settles quickly after bumps and turns. */
+  suspensionCompression: 3.2,
+  suspensionRelaxation: 4.2,
   maxSuspensionTravel: 0.28,
   maxSuspensionForce: 60000,
   frictionSlip: 2.1,
@@ -39,10 +40,14 @@ export const CAR_TUNING = {
   rollingBrake: 3.5,
   maxSteer: 0.52,
   /** Speed (m/s) at which the steering lock has halved, for stability at speed. */
-  steerFalloffSpeed: 15,
-  steerResponse: 8,
+  steerFalloffSpeed: 12,
+  /** How quickly the wheels follow the steering input (1/s): unhurried, so turns feel smooth. */
+  steerResponse: 5.5,
+  /** How quickly the throttle eases toward the pedal (1/s): in when pressing, a little faster out. */
+  throttleRise: 9,
+  throttleFall: 14,
   linearDamping: 0.05,
-  angularDamping: 0.6,
+  angularDamping: 1,
   /** Spawn height of the chassis origin above the ground. */
   spawnHeight: 0.85,
 } as const;
@@ -53,6 +58,8 @@ export const WHEELS = ['FL', 'FR', 'RL', 'RR'] as const;
 export interface DriveState {
   /** Smoothed steering in [-1, 1]. */
   steer: number;
+  /** Smoothed throttle in [-1, 1] (negative brakes, then reverses); starts at 0. */
+  throttle?: number;
 }
 
 export function createChassis(world: World, rapier: Rapier, position: [number, number, number], heading: number): RigidBody {
@@ -118,6 +125,11 @@ export function forwardSpeed(vehicle: Controller): number {
 export function applyDrive(vehicle: Controller, input: DriveInput, state: DriveState, dt: number): DriveState {
   const t = CAR_TUNING;
   const speed = forwardSpeed(vehicle);
+  // Ease the pedal so a key press builds power over a moment instead of jolting the car.
+  const previous = state.throttle ?? 0;
+  const rising = Math.abs(input.throttle) > Math.abs(previous);
+  const throttle = MathUtils.damp(previous, input.throttle, rising ? t.throttleRise : t.throttleFall, dt);
+  input = { ...input, throttle: Math.abs(throttle) < 0.01 && input.throttle === 0 ? 0 : throttle };
   let engine = 0;
   let brake = input.throttle === 0 ? t.rollingBrake : 0;
   if (input.throttle > 0) {
@@ -138,7 +150,7 @@ export function applyDrive(vehicle: Controller, input: DriveInput, state: DriveS
     vehicle.setWheelBrake(i, handbrake ? t.brakeForce * 0.8 : brake);
     vehicle.setWheelFrictionSlip(i, handbrake ? t.handbrakeFrictionSlip : t.frictionSlip);
   }
-  return { steer };
+  return { steer, throttle: input.throttle };
 }
 
 /** How upright the chassis is: 1 = level, 0 = on its side, -1 = upside down. */

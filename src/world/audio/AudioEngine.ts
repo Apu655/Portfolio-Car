@@ -7,6 +7,7 @@ import { on, telemetry, type PropMaterial, type Vec3 } from '../events';
 import { billboardState, lightingState } from '../lighting/state';
 import { AmbienceBed } from './ambienceBed';
 import { EngineSynth } from './engineSynth';
+import { MusicBed } from './musicBed';
 import { SampleBank } from './sampleBank';
 import { useAudioSettings } from './settings';
 import { impact, splash, uiSound, whoosh } from './synth';
@@ -30,6 +31,8 @@ export class AudioEngine {
   private car: GainNode | null = null;
   private effects: GainNode | null = null;
   private ambience: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private music: MusicBed | null = null;
   private engine: EngineSynth | null = null;
   private bed: AmbienceBed | null = null;
   private hum: GainNode | null = null;
@@ -116,9 +119,12 @@ export class AudioEngine {
       g.connect(this.master!);
       return g;
     };
-    this.car = bus(0.8);
-    this.effects = bus(0.9);
-    this.ambience = bus(0.75);
+    // A calmer mix: the car and effects sit under the ambience and music rather than over them.
+    this.car = bus(0.55);
+    this.effects = bus(0.6);
+    this.ambience = bus(0.55);
+    this.musicBus = bus(0);
+    this.music = new MusicBed(ctx, this.musicBus);
     this.engine = new EngineSynth(ctx, this.car);
     this.bed = new AmbienceBed(ctx, this.ambience);
 
@@ -141,10 +147,12 @@ export class AudioEngine {
 
   private applySettings(immediate = false): void {
     if (!this.ctx || !this.master) return;
-    const { muted, volume } = useAudioSettings.getState();
+    const { muted, volume, music } = useAudioSettings.getState();
     const target = muted ? 0 : volume;
     // Fade in on unlock so the first sound never pops.
     this.master.gain.setTargetAtTime(target, this.ctx.currentTime, immediate ? 0.15 : 0.05);
+    // The score fades in and out gently when switched.
+    this.musicBus?.gain.setTargetAtTime(music ? 0.9 : 0, this.ctx.currentTime, immediate ? 2 : 0.8);
   }
 
   /** Called every frame with the camera as the listener. */
@@ -154,10 +162,11 @@ export class AudioEngine {
     if (!ctx || ctx.state !== 'running') return;
     this.engine?.update(telemetry);
     this.bed?.update(lightingState.hours);
+    this.music?.update(lightingState.night);
     if (this.hum) {
       const [x, , z] = BILLBOARD.position;
       const d = Math.hypot(listener.position[0] - x, listener.position[2] - z);
-      const level = billboardState.flickering ? 0.05 * attenuation(d) * (0.35 + Math.random() * 0.65) : 0;
+      const level = billboardState.flickering ? 0.022 * attenuation(d) * (0.35 + Math.random() * 0.65) : 0;
       this.hum.gain.setTargetAtTime(level, ctx.currentTime, 0.02);
     }
   }
@@ -207,6 +216,7 @@ export class AudioEngine {
     this.ctx = null;
     this.engine = null;
     this.bed = null;
+    this.music = null;
     useAudioSettings.getState().setStatus('pending');
   }
 }

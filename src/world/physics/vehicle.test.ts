@@ -95,6 +95,17 @@ describe('raycast vehicle handling', () => {
     expect(Math.abs(hl + hr)).toBeLessThan(0.1);
   });
 
+  it('eases the throttle in over about a quarter second instead of snapping to full', () => {
+    const { vehicle } = scene();
+    let state: DriveState = { steer: 0 };
+    state = applyDrive(vehicle, gas, state, 1 / 60);
+    expect(state.throttle).toBeLessThan(0.5);
+    for (let t = 1 / 60; t < 0.3; t += 1 / 60) state = applyDrive(vehicle, gas, state, 1 / 60);
+    expect(state.throttle).toBeGreaterThan(0.85);
+    for (let t = 0; t < 0.3; t += 1 / 60) state = applyDrive(vehicle, idle, state, 1 / 60);
+    expect(state.throttle).toBeLessThan(0.05);
+  });
+
   it('never tunnels through a wall at top speed', () => {
     const { chassis, run } = scene(0, (world) => {
       world.createCollider(RAPIER.ColliderDesc.cuboid(20, 3, 0.3).setTranslation(0, 3, -70));

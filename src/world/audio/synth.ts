@@ -92,11 +92,11 @@ export function impact(ctx: BaseAudioContext, out: AudioNode, material: PropMate
   const pitch = DETUNE[variant % DETUNE.length];
   const ring = voice.ring * t.decay * (0.9 + variant * 0.08);
   voice.partials.forEach((f, i) => tone(ctx, out, when, voice.wave, f * pitch, (t.gain * 0.5) / (i + 1), ring / (1 + i * 0.4), f * pitch * 0.97));
-  noiseBurst(ctx, out, when, voice.noise.type, voice.noise.freq * pitch, voice.noise.q, t.gain * 0.6, voice.noise.decay * t.decay);
+  noiseBurst(ctx, out, when, voice.noise.type, voice.noise.freq * pitch, voice.noise.q, t.gain * 0.4, voice.noise.decay * t.decay);
   // Crashes scatter extra debris grains just after the hit (bricks tumbling, crate slats rattling).
   for (let g = 0; g < t.grains; g++) {
     const at = when + 0.04 + Math.random() * 0.25;
-    noiseBurst(ctx, out, at, 'bandpass', voice.noise.freq * (0.6 + Math.random() * 0.8), 1.5, t.gain * 0.25, 0.05 + Math.random() * 0.08);
+    noiseBurst(ctx, out, at, 'bandpass', voice.noise.freq * (0.6 + Math.random() * 0.8), 1.5, t.gain * 0.16, 0.05 + Math.random() * 0.08);
   }
   return Math.max(ring, voice.noise.decay * t.decay) + (t.grains ? 0.35 : 0.05);
 }

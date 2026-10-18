@@ -293,6 +293,18 @@ describe('sound controls (AE4)', () => {
     await user.click(screen.getByRole('button', { name: 'Volume' }));
     expect(screen.getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
   });
+
+  it('plays background music by default and remembers turning it off', async () => {
+    const { useAudioSettings } = await import('./world/audio/settings');
+    const user = start();
+    useAudioSettings.getState().reload();
+    await user.click(screen.getByRole('button', { name: 'Volume' }));
+    const music = screen.getByRole('checkbox', { name: 'Background music' });
+    expect(music).toBeChecked();
+    await user.click(music);
+    expect(music).not.toBeChecked();
+    expect(JSON.parse(window.localStorage.getItem('portfolio.audio')!).music).toBe(false);
+  });
 });
 
 describe('controls card (fixed camera)', () => {

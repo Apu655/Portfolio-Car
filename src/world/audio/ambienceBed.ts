@@ -60,8 +60,8 @@ export class AmbienceBed {
   update(hours: number): void {
     const now = this.ctx.currentTime;
     const w = ambienceWeights(hours);
-    this.windGain.gain.setTargetAtTime(0.05 * w.day + 0.035 * w.dusk + 0.02 * w.night, now, 1.5);
-    this.cityGain.gain.setTargetAtTime(0.03 * w.day + 0.09 * w.dusk + 0.04 * w.night, now, 1.5);
+    this.windGain.gain.setTargetAtTime(0.028 * w.day + 0.02 * w.dusk + 0.012 * w.night, now, 1.5);
+    this.cityGain.gain.setTargetAtTime(0.015 * w.day + 0.045 * w.dusk + 0.02 * w.night, now, 1.5);
 
     if (w.day > 0.05 && this.nextBird < now + LOOKAHEAD) {
       this.bird(Math.max(now, this.nextBird), w.day);
@@ -93,7 +93,7 @@ export class AmbienceBed {
       osc.frequency.setValueAtTime(base * (0.9 + Math.random() * 0.2), at);
       osc.frequency.exponentialRampToValueAtTime(base * 1.45, at + 0.07);
       gain.gain.setValueAtTime(0.0001, at);
-      gain.gain.exponentialRampToValueAtTime(0.018 * level, at + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.011 * level, at + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.08);
       osc.connect(gain).connect(pan);
       osc.start(at);
@@ -114,7 +114,7 @@ export class AmbienceBed {
     for (let p = 0; p < pulses; p++) {
       const at = when + p * 0.045;
       gain.gain.setValueAtTime(0, at);
-      gain.gain.linearRampToValueAtTime(0.012 * level, at + 0.008);
+      gain.gain.linearRampToValueAtTime(0.008 * level, at + 0.008);
       gain.gain.linearRampToValueAtTime(0, at + 0.03);
     }
     osc.connect(gain).connect(pan);

@@ -13,6 +13,8 @@ export function AudioControls() {
   const status = useAudioSettings((s) => s.status);
   const setMuted = useAudioSettings((s) => s.setMuted);
   const setVolume = useAudioSettings((s) => s.setVolume);
+  const music = useAudioSettings((s) => s.music);
+  const setMusic = useAudioSettings((s) => s.setMusic);
   const [open, setOpen] = useState(false);
   const silent = muted || volume === 0;
   const hint = status === 'pending' ? 'Sound starts when you drive' : status === 'suspended' ? 'Sound paused by the browser: tap or press a key to resume' : undefined;
@@ -39,6 +41,10 @@ export function AudioControls() {
           <label>
             Volume
             <input type="range" min={0} max={1} step={0.05} value={volume} aria-valuetext={`${Math.round(volume * 100)}%`} onChange={(e) => setVolume(Number(e.currentTarget.value))} />
+          </label>
+          <label className="audio-controls__music">
+            <input type="checkbox" checked={music} onChange={(e) => setMusic(e.currentTarget.checked)} />
+            Background music
           </label>
           {hint && <p className="audio-controls__hint">{hint}</p>}
         </div>

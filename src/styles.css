@@ -1309,3 +1309,16 @@ kbd {
     transition: none;
   }
 }
+
+.audio-controls__popover .audio-controls__music {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  color: var(--text);
+}
+
+.audio-controls__popover .audio-controls__music input {
+  width: auto;
+  min-height: 0;
+}

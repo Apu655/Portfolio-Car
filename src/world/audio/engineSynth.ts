@@ -48,7 +48,7 @@ export class EngineSynth {
     shaper.curve = softClip();
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = 'lowpass';
-    this.engineFilter.Q.value = 2.5;
+    this.engineFilter.Q.value = 1.1;
     this.engineGain = ctx.createGain();
     this.engineGain.gain.value = 0;
     this.burble = ctx.createGain();
@@ -56,9 +56,10 @@ export class EngineSynth {
     const mix = ctx.createGain();
     mix.gain.value = 0.35;
     this.oscillators = [
-      this.osc('sawtooth', IDLE_HZ, 0, mix),
-      this.osc('sawtooth', IDLE_HZ, 9, mix),
-      this.osc('square', IDLE_HZ / 2, 0, mix, 0.6),
+      // A soft triangle body with a little saw for edge, over a sine sub: warm rather than buzzy.
+      this.osc('triangle', IDLE_HZ, 0, mix),
+      this.osc('sawtooth', IDLE_HZ, 7, mix, 0.35),
+      this.osc('sine', IDLE_HZ / 2, 0, mix, 0.8),
     ];
     mix.connect(shaper).connect(this.engineFilter).connect(this.burble).connect(this.engineGain).connect(out);
     // Idle burble: a slow wobble on the engine level.
@@ -133,22 +134,22 @@ export class EngineSynth {
     glide(this.oscillators[0].frequency, hz);
     glide(this.oscillators[1].frequency, hz);
     glide(this.oscillators[2].frequency, hz / 2);
-    glide(this.engineFilter.frequency, 380 + 2600 * (revs * 0.6 + throttle * 0.4));
+    glide(this.engineFilter.frequency, 260 + 1500 * (revs * 0.6 + throttle * 0.4));
     // Louder under load, quieter on overrun (lifting off at speed).
-    glide(this.engineGain.gain, 0.12 + throttle * 0.16 + revs * 0.06, 0.1);
-    glide(this.burbleDepth.gain, 0.18 * (1 - Math.min(1, speed / 6)), 0.2);
+    glide(this.engineGain.gain, 0.07 + throttle * 0.09 + revs * 0.04, 0.15);
+    glide(this.burbleDepth.gain, 0.12 * (1 - Math.min(1, speed / 6)), 0.2);
 
-    glide(this.whineGain.gain, t.reversing ? Math.min(0.05, 0.015 + speed * 0.006) : 0, 0.08);
+    glide(this.whineGain.gain, t.reversing ? Math.min(0.025, 0.008 + speed * 0.003) : 0, 0.08);
     glide(this.whine.frequency, 700 + speed * 120);
 
     const grounded = t.wheelsOnGround > 0 ? 1 : 0;
     glide(this.rollFilter.frequency, 180 + speed * 28);
-    glide(this.rollGain.gain, grounded * Math.min(0.16, speed * 0.008), 0.1);
+    glide(this.rollGain.gain, grounded * Math.min(0.08, speed * 0.004), 0.15);
     const scrub = t.braking && speed > 4 ? 0.25 : 0;
     const skid = grounded * Math.min(1, t.slip + scrub) * Math.min(1, speed / 6);
-    glide(this.skidGain.gain, (t.wet > 0 ? 0.08 : 0.22) * skid, 0.05);
-    glide(this.wetGain.gain, t.wet > 0 && !t.inWater ? Math.min(0.12, speed * 0.01) * Math.min(1, t.wet) : 0, 0.15);
-    glide(this.churnGain.gain, t.inWater ? 0.05 + Math.min(0.18, speed * 0.025) : 0, 0.12);
+    glide(this.skidGain.gain, (t.wet > 0 ? 0.04 : 0.11) * skid, 0.08);
+    glide(this.wetGain.gain, t.wet > 0 && !t.inWater ? Math.min(0.06, speed * 0.005) * Math.min(1, t.wet) : 0, 0.15);
+    glide(this.churnGain.gain, t.inWater ? 0.03 + Math.min(0.1, speed * 0.014) : 0, 0.12);
   }
 
   stop(): void {

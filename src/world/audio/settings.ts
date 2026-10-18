@@ -9,6 +9,8 @@ const KEY = 'portfolio.audio';
 interface Saved {
   muted: boolean;
   volume: number;
+  /** Whether the ambient score plays (sound effects are unaffected). */
+  music: boolean;
 }
 
 function load(): Saved {
@@ -16,10 +18,11 @@ function load(): Saved {
     const saved = JSON.parse(window.localStorage.getItem(KEY) ?? '{}') as Partial<Saved>;
     return {
       muted: saved.muted === true,
-      volume: typeof saved.volume === 'number' && saved.volume >= 0 && saved.volume <= 1 ? saved.volume : 0.7,
+      volume: typeof saved.volume === 'number' && saved.volume >= 0 && saved.volume <= 1 ? saved.volume : 0.5,
+      music: saved.music !== false,
     };
   } catch {
-    return { muted: false, volume: 0.7 };
+    return { muted: false, volume: 0.5, music: true };
   }
 }
 
@@ -31,10 +34,13 @@ function save(settings: Saved): void {
   }
 }
 
+const pick = ({ muted, volume, music }: Saved): Saved => ({ muted, volume, music });
+
 interface AudioSettings extends Saved {
   status: AudioStatus;
   setMuted(muted: boolean): void;
   setVolume(volume: number): void;
+  setMusic(music: boolean): void;
   setStatus(status: AudioStatus): void;
   /** Re-read the saved settings (on start-up). */
   reload(): void;
@@ -45,12 +51,16 @@ export const useAudioSettings = create<AudioSettings>((set, get) => ({
   status: 'pending',
   setMuted: (muted) => {
     set({ muted });
-    save({ muted, volume: get().volume });
+    save({ ...pick(get()), muted });
   },
   setVolume: (volume) => {
     const v = Math.min(1, Math.max(0, volume));
     set({ volume: v });
-    save({ muted: get().muted, volume: v });
+    save({ ...pick(get()), volume: v });
+  },
+  setMusic: (music) => {
+    set({ music });
+    save({ ...pick(get()), music });
   },
   setStatus: (status) => set({ status }),
   reload: () => set(load()),
