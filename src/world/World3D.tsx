@@ -78,7 +78,7 @@ export default function World3D() {
   return (
     <>
       <div className="world" role="region" aria-label="3D district. Use the Menu button to visit each stop with a keyboard or screen reader.">
-        <Canvas onCreated={installTestHooks} shadows={settings.shadows} dpr={settings.dpr} camera={{ fov: VIEW.fov, near: 0.3, far: 2000, position: OPENING_CAMERA }} gl={{ antialias: !settings.postProcessing, powerPreference: 'high-performance' }}>
+        <Canvas onCreated={installTestHooks} shadows={settings.shadows} dpr={settings.dpr} camera={{ fov: VIEW.fov, near: 0.3, far: 2000, position: OPENING_CAMERA }} gl={{ antialias: false, powerPreference: 'high-performance' }}>
           <Lighting shadows={settings.shadows} shadowMapSize={settings.shadowMapSize} />
           <Suspense fallback={null}>
             <Physics timeStep={1 / 60} interpolate gravity={[0, -9.81, 0]}>
@@ -95,7 +95,7 @@ export default function World3D() {
             <Landmarks />
             <FollowCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
             <OcclusionFade />
-            {settings.postProcessing && <PostFx />}
+            <PostFx bloomScale={settings.bloomScale} bloomIntensity={settings.bloomIntensity} />
             <LabelProjector />
           </Suspense>
           <AudioDriver />

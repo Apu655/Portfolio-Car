@@ -1,4 +1,4 @@
-// Rendering quality tiers (KTD5): pick a starting tier from the device, then step down one tier when the frame
+// Rendering quality tiers (KTD5, KTD10): pick a starting tier from the device, then step down one tier when the frame
 // rate stays low. Pure so it can be unit-tested.
 
 export type Tier = 'high' | 'medium' | 'low';
@@ -6,14 +6,18 @@ export type Tier = 'high' | 'medium' | 'low';
 export interface TierSettings {
   shadows: boolean;
   shadowMapSize: number;
-  postProcessing: boolean;
+  /** Bloom's blur resolution as a share of the screen: 1 is the full mipmap blur, 0.5 a cheaper half-size blur. */
+  bloomScale: number;
+  bloomIntensity: number;
+  /** Resolution scale range; the upper bound caps it on retina screens. */
   dpr: [number, number];
 }
 
+/** Every tier runs the composer, so the grade, vignette and tone mapping hold everywhere (KTD10). */
 export const TIER_SETTINGS: Record<Tier, TierSettings> = {
-  high: { shadows: true, shadowMapSize: 2048, postProcessing: true, dpr: [1, 2] },
-  medium: { shadows: true, shadowMapSize: 1024, postProcessing: false, dpr: [1, 1.5] },
-  low: { shadows: false, shadowMapSize: 512, postProcessing: false, dpr: [1, 1] },
+  high: { shadows: true, shadowMapSize: 2048, bloomScale: 1, bloomIntensity: 0.7, dpr: [1, 1.5] },
+  medium: { shadows: true, shadowMapSize: 1024, bloomScale: 1, bloomIntensity: 0.7, dpr: [1, 1.25] },
+  low: { shadows: false, shadowMapSize: 512, bloomScale: 0.5, bloomIntensity: 0.5, dpr: [1, 1] },
 };
 
 export interface DeviceInfo {

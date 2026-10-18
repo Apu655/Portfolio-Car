@@ -1,16 +1,22 @@
-import { Bloom, EffectComposer, N8AO, TiltShift2 } from '@react-three/postprocessing';
+import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, ToneMapping, Vignette } from '@react-three/postprocessing';
+import { ToneMappingMode } from 'postprocessing';
 
 /**
- * High tier only (KTD5): soft ambient occlusion, a gentle bloom on bright emissives (window lights, bulbs), and a
- * tilt-shift blur on the top and bottom edges that makes the district read as a tabletop miniature (R14). The
- * sharp band runs across the middle of the screen, where the car and the road ahead sit.
+ * Every tier (KTD8, KTD10): a bloom on bright emissives (night windows, neon, bulbs) that leaves the day alone, a
+ * slight contrast and saturation grade, a vignette, and ACES tone mapping last. The composer switches the
+ * renderer's own tone mapping off while mounted; the ACES pass still reads `gl.toneMappingExposure`, so Lighting's
+ * per-frame exposure carries through. Mipmap blur ignores a resolution scale, so a scale under 1 switches to the
+ * cheaper Kawase blur at that size.
  */
-export function PostFx() {
+export function PostFx({ bloomScale, bloomIntensity }: { bloomScale: number; bloomIntensity: number }) {
+  const mipmap = bloomScale >= 1;
   return (
     <EffectComposer multisampling={4}>
-      <N8AO aoRadius={2.5} intensity={2.2} distanceFalloff={1.2} halfRes />
-      <Bloom luminanceThreshold={1.1} luminanceSmoothing={0.2} intensity={0.55} mipmapBlur />
-      <TiltShift2 blur={0.12} taper={0.6} start={[0, 0.5]} end={[1, 0.5]} samples={10} />
+      <Bloom luminanceThreshold={0.9} luminanceSmoothing={0.25} intensity={bloomIntensity} radius={0.7} mipmapBlur={mipmap} resolutionScale={bloomScale} />
+      <BrightnessContrast contrast={0.06} />
+      <HueSaturation saturation={0.06} />
+      <Vignette offset={0.32} darkness={0.42} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   );
 }

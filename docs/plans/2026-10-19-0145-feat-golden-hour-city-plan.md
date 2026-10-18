@@ -167,7 +167,7 @@ flowchart TB
 
 ### Assumptions
 
-- Headless Chrome reads well below headed Chrome on this M1, but the ratio is unmeasured. U2 records the first headed baseline, and every frame-rate gate is a headed run.
+- Every frame-rate gate is a headed run. The first headed baseline (after U2, at night, 1440×900 retina, resolution scale 1.5): 58.8 and 60.0 fps averages, 5th percentile about 54 fps, no tier drop.
 
 ### Implementation Units
 
