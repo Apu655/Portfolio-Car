@@ -59,11 +59,28 @@ const careerZone: Zone = {
  */
 export const ROBOT = { position: [70, 22] as Vec2, radius: 1.1, height: 3.6, facing: HEADING.south };
 
-/** One building for all the projects, north of the north road (R10). `size` is its footprint (x, z). */
-export const PROJECTS_HALL = { center: [12, -75] as Vec2, size: [18, 12] as Vec2, height: 12, facing: HEADING.south };
+/**
+ * One building for all the projects, north of the north road (R10). `size` is its world footprint (x, z); the
+ * model is built facing north at the origin and turned to `facing`. `sign` is the painted panel on its front:
+ * the name band and a strip of project screenshots (width, height, height of its center).
+ */
+export const PROJECTS_HALL = {
+  center: [12, -75] as Vec2,
+  size: [18, 12] as Vec2,
+  height: 12,
+  facing: HEADING.south,
+  sign: { width: 14, height: 4.6, centerY: 7.4 },
+};
 
 /** A small university-style hall east of the west road (R11); the clock tower rises to `towerHeight`. */
-export const CAMPUS = { center: [-54, 12] as Vec2, size: [12, 16] as Vec2, height: 10, towerHeight: 16, facing: HEADING.west };
+export const CAMPUS = {
+  center: [-54, 12] as Vec2,
+  size: [12, 16] as Vec2,
+  height: 10,
+  towerHeight: 16,
+  facing: HEADING.west,
+  sign: { width: 6.4, height: 1.3, centerY: 6.9 },
+};
 
 /** The Contact kiosk, north of the south road a little west of the start (R12). Its face looks south. */
 export const CONTACT_KIOSK = { position: [-28, 46] as Vec2, accent: '#d77fb5' };
