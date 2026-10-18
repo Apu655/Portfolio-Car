@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
 import { BUILDINGS, SECTION_GATES, TOWER } from '../district/layout';
 import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
+import { useSurfaceDetail } from './useSurfaceDetail';
 import { Selectable } from './Selectable';
 
 export const MODEL_URLS = {
@@ -128,6 +129,10 @@ export function District() {
     const contactKiosk = kiosks.scene.getObjectByName('kiosk_contact')!;
     return { scene, ground, groundShape, backdrop, dissolvables, contactKiosk };
   }, [district, tower, kiosks, buildings]);
+
+  // Building footprints for the ground's contact shading; the records hold world-axis half sizes.
+  const footprints = useMemo(() => BUILDINGS.map((b) => ({ x: b.center[0], z: b.center[1], hx: b.half[0], hz: b.half[1], rotationY: 0 })), []);
+  useSurfaceDetail(parts.scene, footprints);
 
   useEffect(() => {
     parts.dissolvables.forEach(([key, d]) => dissolveTargets.set(key, d));

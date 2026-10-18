@@ -2,6 +2,7 @@
 // dot pattern instead of turning transparent, so it keeps writing depth and never mis-sorts against glass.
 // Materials are patched when the scene loads, so the shader variant compiles behind the loading screen.
 import * as THREE from 'three';
+import { addShaderPatch } from './shaderPatch';
 
 /** At full fade this share of pixels is dropped; the rest keep a faint ghost so the building still reads. */
 const MAX_DROP = 0.82;
@@ -25,14 +26,12 @@ float ceDissolveBayer(vec2 p) {
 `;
 
 function patch(material: THREE.Material, fade: { value: number }): void {
-  material.onBeforeCompile = (shader) => {
+  // Composes with any surface shader on the same material (shaderPatch), rather than replacing it.
+  addShaderPatch(material, 'ce-dissolve', (shader) => {
     shader.uniforms.uDissolve = fade;
     shader.fragmentShader = shader.fragmentShader
       .replace('void main() {', `${DITHER}\nvoid main() {\n  if (uDissolve > 0.0 && ceDissolveBayer(gl_FragCoord.xy) < uDissolve * ${MAX_DROP.toFixed(2)}) discard;`);
-  };
-  // One shared program per material type: every patched material compiles the same source.
-  material.customProgramCacheKey = () => 'ce-dissolve';
-  material.needsUpdate = true;
+  });
 }
 
 /**
