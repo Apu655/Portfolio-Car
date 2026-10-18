@@ -255,7 +255,7 @@ def build(layout):
     kit.join(hedges, "hedges")
 
     flowers = {"flower_a": [], "flower_b": []}
-    for bed, (bx, bz) in enumerate([(-55, 30), (-22, 30), (-55, -35)]):
+    for bed, (bx, bz) in enumerate([(-55, 30), (-13, 22), (-55, -35)]):  # clear of the football pitch
         for k in range(26):
             key = "flower_a" if k % 2 else "flower_b"
             flowers[key].append(kit.ico(f"flower{bed}_{k}", 0.25, bx + rnd.uniform(-3, 3), 0.25, bz + rnd.uniform(-1.5, 1.5), None, subdivisions=1))

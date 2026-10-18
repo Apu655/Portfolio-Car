@@ -1,6 +1,6 @@
 import { distanceToCollider, STATIC_COLLIDERS } from './colliders';
 import { TO_CAMERA } from '../camera/framing';
-import { BILLBOARD, gatePoint, onRoad, POND, pondDepth, PROPS, SECTION_GATES, SPAWN, TREES, ZONES, zoneAt, zoneFor } from './layout';
+import { BILLBOARD, FOOTBALLS, gatePoint, onRoad, PITCH, POND, pondDepth, PROPS, SECTION_GATES, SPAWN, TREES, ZONES, zoneAt, zoneFor } from './layout';
 
 const solids = STATIC_COLLIDERS.filter((c) => !c.name.startsWith('wall-'));
 
@@ -90,5 +90,20 @@ describe('district layout', () => {
       const cos = (Math.sin(g.rotationY) * toCamera[0] + Math.cos(g.rotationY) * toCamera[1]) / length;
       expect(cos, g.section).toBeGreaterThan(Math.cos((50 * Math.PI) / 180));
     }
+  });
+
+  it('keeps the football pitch clear: off the roads and the pond, with no trees or props on it', () => {
+    const inside = (x: number, z: number, margin = 0) =>
+      Math.abs(x - PITCH.center[0]) < PITCH.size[0] / 2 + margin && Math.abs(z - PITCH.center[1]) < PITCH.size[1] / 2 + margin;
+    for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      const x = PITCH.center[0] + (dx * PITCH.size[0]) / 2;
+      const z = PITCH.center[1] + (dz * PITCH.size[1]) / 2;
+      expect(onRoad(x, z, 1)).toBe(false);
+      expect(pondDepth(x, z)).toBe(0);
+    }
+    for (const t of TREES) expect(inside(t.position[0], t.position[2], 5)).toBe(false);
+    for (const p of PROPS) expect(inside(p.position[0], p.position[2], 1), p.id).toBe(false);
+    expect(FOOTBALLS).toHaveLength(8);
+    for (const [x, z] of FOOTBALLS) expect(inside(x, z)).toBe(true);
   });
 });

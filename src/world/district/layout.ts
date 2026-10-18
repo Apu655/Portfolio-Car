@@ -93,6 +93,15 @@ export const PLAZAS = [
 const inPlaza = (x: number, z: number, margin: number) =>
   PLAZAS.some((p) => Math.abs(x - p.center[0]) < p.size[0] / 2 + margin && Math.abs(z - p.center[1]) < p.size[1] / 2 + margin);
 
+/** A small football pitch just inside the loop from the start, with a goal at each end (R11). */
+export const PITCH = { center: [-32, 31] as Vec2, size: [24, 14] as Vec2, goal: { width: 4.2, height: 2, depth: 1.4 } };
+
+/** Where the tech-stack footballs start: two rows of four across the middle of the pitch. */
+export const FOOTBALLS: Vec2[] = [-1, 1].flatMap((row) => [-1.5, -0.5, 0.5, 1.5].map((col): Vec2 => [PITCH.center[0] + col * 3.2, PITCH.center[1] + row * 2.4]));
+
+const onPitch = (x: number, z: number, margin: number) =>
+  Math.abs(x - PITCH.center[0]) < PITCH.size[0] / 2 + margin && Math.abs(z - PITCH.center[1]) < PITCH.size[1] / 2 + margin;
+
 /** Shallow pond in the park (west half of the loop). */
 export const POND = { center: [-35, -6] as Vec2, radiusX: 14, radiusZ: 10, depth: 0.7, shore: 3.5 };
 
@@ -271,7 +280,8 @@ export const TREES: StaticPlacement[] = (() => {
     Math.hypot(x - BILLBOARD.position[0], z - BILLBOARD.position[2]) < 16 ||
     PROPS.some((p) => Math.hypot(x - p.position[0], z - p.position[2]) < 3) ||
     ZONES.some((zone) => Math.hypot(x - zone.center[0], z - zone.center[1]) < zone.radius + 3) ||
-    inPlaza(x, z, 2.5);
+    inPlaza(x, z, 2.5) ||
+    onPitch(x, z, 6);
   for (let i = 0; i < 260 && result.length < 90; i++) {
     const x = (random() * 2 - 1) * (WORLD_HALF - 18);
     const z = (random() * 2 - 1) * (WORLD_HALF - 18);

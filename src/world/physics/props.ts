@@ -22,6 +22,9 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   brick: { shape: 'box', half: [0.29, 0.15, 0.2], mass: 4, material: 'brick', friction: 0.65, restitution: 0.05 },
 };
 
+/** The tech-stack footballs (R11): oversized so they read from the high camera, light and bouncy. */
+export const FOOTBALL = { radius: 0.55, mass: 2, friction: 0.6, restitution: 0.55 } as const;
+
 /** Contact force (N) per kg of prop mass that counts as a full-strength impact. */
 const FULL_IMPACT_FORCE_PER_KG = 900;
 /** Below this, contacts are resting or sliding, not impacts. */

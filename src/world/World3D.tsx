@@ -16,6 +16,7 @@ import { Car } from './scene/Car';
 import { District } from './scene/District';
 import { LabelProjector } from './scene/LabelProjector';
 import { Props } from './scene/Props';
+import { Footballs } from './scene/Footballs';
 import { SectionGates } from './scene/SectionGates';
 import { GateCaptionProjector } from './scene/GateCaptionProjector';
 import { GateCaptions } from '../ui/GateCaptions';
@@ -80,6 +81,7 @@ export default function World3D() {
             <Physics timeStep={1 / 60} interpolate gravity={[0, -9.81, 0]}>
               <District />
               <Props />
+              <Footballs />
               <Car />
             </Physics>
             <Water />

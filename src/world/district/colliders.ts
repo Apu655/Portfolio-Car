@@ -1,6 +1,6 @@
 // Static colliders derived from the layout: everything solid the car can hit except the ground (a trimesh
 // from the district model) and the physical props (their own bodies).
-import { BILLBOARD, BUILDING_HALF, BUILDINGS, GATE_FRAME, gatePoint, KIOSK_Z, KIOSKS, LAMPS, PLAZAS, SECTION_GATES, TOWER, TREES, WORLD_HALF, type Vec3 } from './layout';
+import { BILLBOARD, BUILDING_HALF, BUILDINGS, GATE_FRAME, gatePoint, KIOSK_Z, KIOSKS, LAMPS, PITCH, PLAZAS, SECTION_GATES, TOWER, TREES, WORLD_HALF, type Vec3 } from './layout';
 
 export interface BoxCollider {
   kind: 'box';
@@ -57,6 +57,18 @@ export const STATIC_COLLIDERS: StaticCollider[] = [
     const x = BILLBOARD.position[0] + Math.cos(BILLBOARD.rotationY) * offset;
     const z = BILLBOARD.position[2] - Math.sin(BILLBOARD.rotationY) * offset;
     return box(`billboard-post-${side}`, x, z, 0.7, 5.6, 0.7, BILLBOARD.rotationY);
+  }),
+  // Football goals at each end of the pitch: posts, crossbar, and the net's back and sides.
+  ...[-1, 1].flatMap((s) => {
+    const { width: w, height: h, depth: d } = PITCH.goal;
+    const x = PITCH.center[0] + (s * PITCH.size[0]) / 2;
+    const z = PITCH.center[1];
+    return [
+      ...[-1, 1].map((t) => box(`goal${s}-post${t}`, x, z + (t * w) / 2, 0.08, h, 0.08)),
+      box(`goal${s}-bar`, x, z, 0.08, 0.16, w / 2, 0, h - 0.08),
+      box(`goal${s}-back`, x + s * d, z, 0.05, h, w / 2),
+      ...[-1, 1].map((t) => box(`goal${s}-side${t}`, x + (s * d) / 2, z + (t * w) / 2, d / 2, h, 0.05)),
+    ];
   }),
   // Forecourt hedges.
   ...[-1, 1].map((side) => box(`hedge-${side}`, PLAZAS[0].center[0], TOWER.center[1] + side * 12.5, 7, 1.05, 0.6)),

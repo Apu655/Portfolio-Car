@@ -1,7 +1,7 @@
 // Covers AE1 on the real Rapier engine, plus impact strength and the reset rule.
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PROPS } from '../district/layout';
-import { impactIntensity, impactThreshold, MIN_IMPACT, PROP_SPECS, shouldReset } from './props';
+import { FOOTBALL, impactIntensity, impactThreshold, MIN_IMPACT, PROP_SPECS, shouldReset } from './props';
 import { applyDrive, createChassis, createVehicle, headingQuat, type DriveState } from './vehicle';
 
 beforeAll(async () => {
@@ -86,6 +86,29 @@ describe('impacts', () => {
     expect(impactIntensity(1000, 3)).toBeGreaterThan(impactIntensity(200, 3));
     expect(impactIntensity(5000, 3)).toBeGreaterThan(impactIntensity(5000, 20));
     expect(impactIntensity(1e9, 3)).toBe(1);
+  });
+});
+
+describe('footballs', () => {
+  it('a 30 km/h nudge sends a football rolling well away', () => {
+    const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+    world.timestep = STEP;
+    world.createCollider(RAPIER.ColliderDesc.cuboid(200, 0.5, 200).setTranslation(0, -0.5, 0).setFriction(1));
+    const ball = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0, FOOTBALL.radius, -8).setLinearDamping(0.25));
+    world.createCollider(RAPIER.ColliderDesc.ball(FOOTBALL.radius).setMass(FOOTBALL.mass).setFriction(FOOTBALL.friction).setRestitution(FOOTBALL.restitution), ball);
+    const chassis = createChassis(world, RAPIER, [0, 0, 4], 0);
+    const vehicle = createVehicle(world, chassis);
+    chassis.setLinvel({ x: 0, y: 0, z: -30 / 3.6 }, true);
+    let drive: DriveState = { steer: 0 };
+    for (let t = 0; t < 3; t += STEP) {
+      // Hold about 30 km/h until the car reaches the ball, then coast.
+      const before = chassis.translation().z > -6;
+      drive = applyDrive(vehicle, { throttle: before && -chassis.linvel().z < 30 / 3.6 ? 1 : 0, steer: 0, handbrake: false }, drive, STEP);
+      vehicle.updateVehicle(STEP, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS);
+      world.step();
+    }
+    const p = ball.translation();
+    expect(Math.hypot(p.x, p.z + 8)).toBeGreaterThan(6);
   });
 });
 

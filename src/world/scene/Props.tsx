@@ -23,7 +23,11 @@ interface PropTag {
   brick?: number;
 }
 
-const tagOf = (body: RapierRigidBody) => body.userData as PropTag | undefined;
+/** The body's prop tag, or undefined for any other body (the car, footballs, the ground). */
+const tagOf = (body: RapierRigidBody): PropTag | undefined => {
+  const data = body.userData as Partial<PropTag> | undefined;
+  return typeof data?.prop === 'number' ? (data as PropTag) : undefined;
+};
 
 function restCenter(p: PropPlacement): [number, number, number] {
   return [p.position[0], p.position[1] + PROP_SPECS[p.kind].half[1], p.position[2]];
