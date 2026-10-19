@@ -65,7 +65,7 @@ const key = (
 
 /** The moonlit night, held from late evening until dawn. */
 const MOONLIT = (hour: number) =>
-  key(hour, [320, 42, '#a9bcff', 0.45], ['#080d22', '#1d2647'], ['#4a5c9e', '#16172a', 0.72], ['#182042', 0.0028], 0.42, 1, 1.25);
+  key(hour, [320, 42, '#a9bcff', 0.45], ['#080d22', '#1d2647'], ['#4a5c9e', '#16172a', 0.72], ['#182042', 0.0028], 0.42, 1, 1.6);
 
 /**
  * The golden-hour miniature city's day (approved look-dev): crisp midday, a warm low sun at golden hour, a
@@ -82,7 +82,7 @@ const KEYFRAMES: Keyframe[] = [
   key(18.7, [257, 4, '#ff8a4a', 2.55], ['#33508f', '#ffa27a'], ['#b8a6b8', '#5a3e34', 0.7], ['#c89a8c', 0.0022], 0.6, 0.3, 1.25),
   // Blue hour: the sun is down, the sky glows violet-blue, and the city lights come up.
   key(19.2, [262, -4, '#b8a2d8', 1.1], ['#22346e', '#8f73ab'], ['#6d7cc4', '#2c2234', 0.7], ['#5a4c86', 0.0028], 0.5, 0.72, 1.2),
-  key(20.3, [300, 30, '#a9bcff', 0.5], ['#0e1736', '#2c3566'], ['#4a5fa8', '#1a1a2a', 0.78], ['#1d2650', 0.0028], 0.45, 0.95, 1.25),
+  key(20.3, [300, 30, '#a9bcff', 0.5], ['#0e1736', '#2c3566'], ['#4a5fa8', '#1a1a2a', 0.78], ['#1d2650', 0.0028], 0.45, 0.95, 1.5),
   MOONLIT(21),
   MOONLIT(23.5),
 ];

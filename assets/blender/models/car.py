@@ -112,7 +112,7 @@ def wheel(name, x, z, m):
 
 def build(layout):
     m = {
-        "paint": kit.mat("car_paint", "#1d4d3e", roughness=0.26, metallic=0.55, clearcoat=1.0),
+        "paint": kit.mat("car_paint", "#22594a", roughness=0.3, metallic=0.25, clearcoat=1.0),
         "glass": kit.mat("car_glass", "#0f1820", roughness=0.06, metallic=0.4, clearcoat=1.0),
         "chrome": kit.mat("chrome", "#e7e8ea", roughness=0.1, metallic=1.0),
         "brass": kit.mat("brass", "#c99a45", roughness=0.25, metallic=1.0),

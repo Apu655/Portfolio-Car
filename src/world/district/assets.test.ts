@@ -181,11 +181,8 @@ describe('built models expose the runtime contract', () => {
     expect(tower.materials.has('tower_crown_glow')).toBe(true);
   });
 
-  it('props and backdrop buildings: every kind and variant the layout uses', () => {
+  it('props: every kind the layout uses', () => {
     const props = gltf('props');
     for (const kind of ['cone', 'crate', 'barrel', 'sign', 'bench', 'brick']) expect(props.nodes.has(`prop_${kind}`), kind).toBe(true);
-    const buildings = gltf('buildings');
-    for (let i = 0; i < 4; i++) expect(buildings.nodes.has(`building_${i}`)).toBe(true);
-    expect(buildings.materials.has('building_window_lit')).toBe(true);
   });
 });

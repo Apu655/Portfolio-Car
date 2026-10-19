@@ -19,6 +19,7 @@ export const NIGHT_GLOW: Array<[string, number, number]> = [
   ['robot_screen', 0.8, 2],
   ['hall_window_lit', 0.05, 1.6],
   ['campus_window_lit', 0.05, 1.5],
+  ['neon_', 0.3, 2.6],
 ];
 
 const SHADOW_HALF = 60;
