@@ -81,16 +81,17 @@ export function District() {
     }
     enableShadows(tower.scene);
     enableShadows(kiosks.scene);
+    // The Contact kiosk renders as its own clickable object, so mounting moves it out of the cached kiosks scene
+    // and unmounting drops it. Remember it on first sight, or a second visit to the city can't find it by name.
+    const contactKiosk: THREE.Object3D = (kiosks.scene.userData.contactKiosk ??= kiosks.scene.getObjectByName('kiosk_contact')!);
     // Everything tall enough to hide the car can dissolve while it does (R3); the city blocks register their own
     // (CityBuildings). Kiosks share materials, so they get their own copies; the tower is a single instance and is
     // patched in place.
     const dissolvables: Array<[string, Dissolvable]> = [
       ['tower', makeDissolvable(tower.scene, { cloneMaterials: false })],
       ...SECTION_GATES.map((g): [string, Dissolvable] => [`gate-${g.section}`, makeDissolvable(kiosks.scene.getObjectByName(`gate_${g.section}`)!, { cloneMaterials: true })]),
-      ['kiosk-contact', makeDissolvable(kiosks.scene.getObjectByName('kiosk_contact')!, { cloneMaterials: true })],
+      ['kiosk-contact', makeDissolvable(contactKiosk, { cloneMaterials: true })],
     ];
-    // The Contact kiosk renders as its own clickable object; the section gates stay in the shared kiosks scene.
-    const contactKiosk = kiosks.scene.getObjectByName('kiosk_contact')!;
     return { scene, ground, groundShape, dissolvables, contactKiosk };
   }, [district, tower, kiosks]);
 
