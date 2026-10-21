@@ -515,6 +515,24 @@ button.primary:hover:not(:disabled) {
   touch-action: none;
 }
 
+.boost-button {
+  position: absolute;
+  right: calc(1.5rem + 84px + 0.75rem);
+  bottom: 2rem;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  justify-content: center;
+  touch-action: none;
+  font-size: 0.85rem;
+  border-color: var(--warm);
+  color: var(--warm);
+}
+
+.boost-button.is-locked {
+  opacity: 0.45;
+}
+
 .recover-button {
   position: absolute;
   right: 1.75rem;
@@ -1253,6 +1271,49 @@ kbd {
   transition: width 200ms, height 200ms;
 }
 
+/* The nitro tank, riding on the map card: above it on desktop, below it on touch screens (the map sits at the top). */
+.boost-gauge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(12, 16, 38, 0.72);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.boost-gauge__fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #ff7a1f, var(--warm) 70%, #b9e6ff);
+  transition: opacity 160ms;
+}
+
+.boost-gauge__rearm {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(233, 238, 252, 0.6);
+}
+
+.boost-gauge.is-refilling .boost-gauge__fill {
+  opacity: 0.55;
+}
+
+.boost-gauge.is-locked .boost-gauge__fill {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.boost-gauge.is-boosting {
+  box-shadow: 0 0 10px rgba(255, 122, 31, 0.55);
+}
+
 .minimap.is-expanded {
   width: min(360px, 80vw);
   height: min(360px, 80vw);
@@ -1348,6 +1409,11 @@ kbd {
     bottom: auto;
     width: 132px;
     height: 132px;
+  }
+
+  .boost-gauge {
+    top: calc(100% + 8px);
+    bottom: auto;
   }
 
   .minimap__marker {

@@ -1,5 +1,5 @@
 // Covers AE4: no audio context exists until the visitor's first gesture.
-import { AudioEngine, voiceGain } from './AudioEngine';
+import { AudioEngine, nitroHiss, voiceGain } from './AudioEngine';
 import { useAudioSettings } from './settings';
 
 describe('audio unlock (AE4)', () => {
@@ -39,3 +39,14 @@ describe('how loud a one-shot plays', () => {
   });
 });
 
+
+describe('the nitro hiss', () => {
+  it('plays while the boost fires and is silent otherwise', () => {
+    expect(nitroHiss({ boosting: true, speed: 20 })).toBeGreaterThan(0.1);
+    expect(nitroHiss({ boosting: false, speed: 20 })).toBe(0);
+  });
+
+  it('roars a little louder the faster the car goes', () => {
+    expect(nitroHiss({ boosting: true, speed: 30 })).toBeGreaterThan(nitroHiss({ boosting: true, speed: 2 }));
+  });
+});

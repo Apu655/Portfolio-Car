@@ -25,6 +25,7 @@ import {
   type DriveState,
 } from '../physics/vehicle';
 import { MODEL_URLS, enableShadows, useModel } from './District';
+import { NitroFlame } from './NitroFlame';
 
 /** The car model's origin is on the ground; the chassis origin rides this far above it at rest. */
 const VISUAL_OFFSET_Y = -0.7;
@@ -215,6 +216,9 @@ export function Car() {
       <CuboidCollider args={[...CAR_TUNING.chassisHalf]} position={[0, CAR_TUNING.chassisOffsetY, 0]} mass={CAR_TUNING.mass} friction={0.4} restitution={0.1} />
       <group ref={visual}>
         <primitive object={model.scene} position={[0, VISUAL_OFFSET_Y, 0]} />
+        <group position={[0, VISUAL_OFFSET_Y, 0]}>
+          <NitroFlame />
+        </group>
         {headlightTargets.map((target, i) => (
           <group key={i}>
             <primitive object={target} />

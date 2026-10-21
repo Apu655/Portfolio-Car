@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { touchActions, touchInput, touchStick } from '../world/drive/input';
+import { telemetry } from '../world/events';
 
 /** True on phones and tablets (a coarse pointer and no hover). */
 export function useCoarsePointer(): boolean {
@@ -17,17 +18,30 @@ export function useCoarsePointer(): boolean {
 
 const RADIUS = 52;
 
-/** On-screen joystick (drive toward where you push) plus handbrake and recover buttons. */
+/** On-screen joystick (drive toward where you push) plus handbrake, boost, and recover buttons. */
 export function TouchControls() {
   const base = useRef<HTMLDivElement>(null);
   const pointer = useRef<number | null>(null);
   const [knob, setKnob] = useState<[number, number]>([0, 0]);
+  const boost = useRef<HTMLButtonElement>(null);
+
+  // The boost button dims with the gauge while an emptied tank refills to its re-arm level.
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      boost.current?.classList.toggle('is-locked', telemetry.boostLocked);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(
     () => () => {
       touchStick.x = 0;
       touchStick.y = 0;
       touchInput.handbrake = false;
+      touchInput.boost = false;
     },
     [],
   );
@@ -80,6 +94,17 @@ export function TouchControls() {
         onPointerLeave={() => (touchInput.handbrake = false)}
       >
         Brake
+      </button>
+      <button
+        ref={boost}
+        type="button"
+        className="boost-button"
+        onPointerDown={() => (touchInput.boost = true)}
+        onPointerUp={() => (touchInput.boost = false)}
+        onPointerCancel={() => (touchInput.boost = false)}
+        onPointerLeave={() => (touchInput.boost = false)}
+      >
+        Boost
       </button>
       <button type="button" className="recover-button" onClick={() => (touchActions.recover = true)}>
         Recover

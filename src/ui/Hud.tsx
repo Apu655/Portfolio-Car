@@ -29,6 +29,8 @@ function ControlsList({ touch }: { touch: boolean }) {
         <dd>Tap one to go there</dd>
         <dt>Interact</dt>
         <dd>Open a stop when you’re in its glowing zone</dd>
+        <dt>Boost</dt>
+        <dd>Hold for a burst of nitro; the bar on the map shows the tank</dd>
         <dt>Recover</dt>
         <dd>Put the car back on its wheels</dd>
         <dt>Tap a building</dt>
@@ -52,6 +54,10 @@ function ControlsList({ touch }: { touch: boolean }) {
         <kbd>Space</kbd>
       </dt>
       <dd>Handbrake</dd>
+      <dt>
+        <kbd>Shift</kbd>
+      </dt>
+      <dd>Nitro boost while driving; the bar on the map shows the tank</dd>
       <dt>
         <kbd>E</kbd>
       </dt>

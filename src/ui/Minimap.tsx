@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePortfolio } from '../state/store';
 import { POND, ROADS, SECTION_GATES, SECTION_LETTERS, SECTION_TITLES, TOWER, ZONES } from '../world/district/layout';
 import { telemetry } from '../world/events';
+import { BoostGauge } from './BoostGauge';
 import { mapAngle, MAP_SCALE, MAP_SIZE, toMap } from './minimapProjection';
 
 /** World points around the rounded-rectangle road loop. */
@@ -87,6 +88,7 @@ export function Minimap() {
 
   return (
     <nav className={`minimap${expanded ? ' is-expanded' : ''}`} aria-label="District map">
+      <BoostGauge />
       <svg viewBox={`0 0 ${MAP_SIZE} ${MAP_SIZE}`} role="presentation">
         <path d={shapes.loop} className="minimap__road" strokeWidth={shapes.roadWidth} />
         <path d={shapes.cross} className="minimap__road" strokeWidth={shapes.roadWidth} />

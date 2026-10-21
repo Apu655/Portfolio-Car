@@ -26,6 +26,11 @@ const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 /** Distance (m) at which a sound is at half level. */
 const HALF_DISTANCE = 14;
 
+/** The nitro hiss level while the boost fires: a steady roar that opens up a little with speed. */
+export function nitroHiss({ boosting, speed }: { boosting: boolean; speed: number }): number {
+  return boosting ? 0.16 + Math.min(1, Math.abs(speed) / 35) * 0.12 : 0;
+}
+
 /** A one-shot's level at the listener: `level` faded by distance. */
 export function voiceGain(level: number, source: Vec3, listener: Vec3): number {
   return level * attenuation(Math.hypot(source[0] - listener[0], source[1] - listener[1], source[2] - listener[2]));
@@ -45,6 +50,9 @@ export class AudioEngine {
   /** The hiss of water around the wheels while the car wades. */
   private wade: GainNode | null = null;
   private humSource: OscillatorNode | null = null;
+  /** The nitro's hiss while the boost fires, and whether it fired last frame (a whoosh marks each start). */
+  private nitro: GainNode | null = null;
+  private wasBoosting = false;
   private readonly limiter = new VoiceLimiter();
   private readonly bank = new SampleBank();
   private listener: Listener = { position: [0, 0, 0], right: [1, 0, 0] };
@@ -161,6 +169,24 @@ export class AudioEngine {
     water.connect(wash).connect(this.wade).connect(this.effects);
     water.start();
 
+    // Nitro: a bright hiss over a low rumble, shaped from noise and faded by the boost.
+    const jet = noiseSource(ctx, true);
+    const hiss = ctx.createBiquadFilter();
+    hiss.type = 'bandpass';
+    hiss.frequency.value = 2600;
+    hiss.Q.value = 0.8;
+    const rumble = ctx.createBiquadFilter();
+    rumble.type = 'lowpass';
+    rumble.frequency.value = 180;
+    const rumbleGain = ctx.createGain();
+    rumbleGain.gain.value = 2.2;
+    this.nitro = ctx.createGain();
+    this.nitro.gain.value = 0;
+    jet.connect(hiss).connect(this.nitro);
+    jet.connect(rumble).connect(rumbleGain).connect(this.nitro);
+    this.nitro.connect(this.car!);
+    jet.start();
+
     this.applySettings(true);
   }
 
@@ -186,6 +212,11 @@ export class AudioEngine {
       const level = telemetry.inWater ? 0.06 + Math.min(1, Math.abs(telemetry.speed) / 12) * 0.32 : 0;
       this.wade.gain.setTargetAtTime(level, ctx.currentTime, telemetry.inWater ? 0.08 : 0.25);
     }
+    if (this.nitro) {
+      this.nitro.gain.setTargetAtTime(nitroHiss(telemetry), ctx.currentTime, telemetry.boosting ? 0.04 : 0.08);
+      if (telemetry.boosting && !this.wasBoosting) this.oneShot('nitro', 0.3, null, 0.7, (out, when) => whoosh(this.ctx!, out, when));
+    }
+    this.wasBoosting = telemetry.boosting;
     if (this.hum) {
       const [x, , z] = BILLBOARD.position;
       const d = Math.hypot(listener.position[0] - x, listener.position[2] - z);
