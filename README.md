@@ -1,6 +1,6 @@
 # Apu Islam: the Career District
 
-An interactive 3D portfolio. Drive a classic coupe through a golden-hour miniature district, seen from a fixed
+An interactive 3D portfolio. Drive a British grand tourer through a golden-hour miniature city, seen from a fixed
 isometric-style camera high above, and discover the career inside it:
 
 Each section has its own road, entered through a gate with a lettered sign. Past the gate, its items stand
@@ -10,7 +10,8 @@ to open that item where you are.
 - **Work (W), the cross street**: a billboard per role (MetLife, Sysonex Development, George Mason University,
   BRAC University), leading to the Career Tower.
 - **Research (R), the east road**: a friendly robot stands in the road just past the gate. Drive up and it
-  greets you with SeCAREly; press **E** to read the paper. A billboard per paper lines the rest of the road.
+  greets you with SeCAREly; press **E** to read the paper. Bump into it and it stumbles aside, tells you off
+  (nicely), and walks back to its spot. A billboard per paper lines the rest of the road.
 - **Projects (P), the north road**: the Projects Hall, its front showing every project's screenshot. Pull up
   and press **E** for the full project list.
 - **Education (E), the west road**: billboards for Monash and BRAC, then a small campus with a clock tower.
@@ -72,6 +73,7 @@ and colliders all come from it, so Blender and the runtime always agree.
 | `S` / `↓` | Brake, then reverse |
 | `A` `D` / `←` `→` | Steer |
 | `Space` | Handbrake |
+| `Shift` | Nitro boost while driving forward: about 3 s per tank, refilling once you let go (the bar on the map shows it) |
 | `R` | Recover: put the car back on its wheels (it also happens on its own after a flip) |
 | `E` | Open the stop whose glowing zone you're in |
 | `Esc` | Close the menu, then the panel (pressing `W` again also closes the panel and drives off) |
@@ -80,7 +82,7 @@ and colliders all come from it, so Blender and the runtime always agree.
 | Click or tap the Career Tower, robot, hall, campus, or kiosk | Fast travel there and open its panel |
 | Click or tap a roadside billboard | Open that item where you are |
 | Scroll · pinch | Zoom in and out (the camera angle itself is fixed) |
-| Touch | Push the joystick toward where you want to drive; Brake, Recover, and an "Open" button inside a zone |
+| Touch | Push the joystick toward where you want to drive; Brake, Boost, Recover, and an "Open" button inside a zone |
 | Any key or tap during the opening fly-over | Skip it |
 
 **Day dial** (top bar): pause or resume the day cycle and drag to any time. On phones it collapses to a time chip.
@@ -107,7 +109,7 @@ src/
   world/events.ts        event bus and telemetry: physics publishes, audio, effects, and HUD listen
   ui/                    HUD, day dial, sound controls, welcome card, E prompt, menu, info panel, touch controls
   basic/BasicSite.tsx    the conventional quick view
-assets/blender/          Python model scripts (car, tower, district, gates and kiosk, landmarks, billboard, buildings, props)
+assets/blender/          Python model scripts (car, tower, district, gates and kiosk, landmarks, billboard, props)
 e2e/                     Playwright smoke tests (drive to the tower, pond, cones, fast travel, fps report)
 ```
 
@@ -119,9 +121,27 @@ e2e/                     Playwright smoke tests (drive to the tower, pond, cones
   bodies that sleep until hit and quietly tidy themselves up once you've driven away.
 - **Performance:**
   - The quick view never downloads three.js, physics, models, or sounds; the district is a lazily loaded chunk.
-  - Three quality tiers (shadows, resolution, ambient occlusion and bloom); the site steps down a tier if the
-    frame rate stays low.
-  - Current 3D download: about 2.7 MB in total (1.4 MB of models).
+  - Three quality tiers (shadows, resolution, and bloom); every tier keeps the same color grade, and phones start
+    on the lowest. The site steps down a tier if the frame rate stays low.
+  - Current 3D download: about 3.2 MB in total (1.3 MB of models).
+
+## Art notes
+
+The look is a stylized, cartoon-realistic diorama: warm limestone, terracotta and sage buildings, blue-grey
+asphalt with ochre markings, one warm sun against a cool sky fill, and a moonlit indigo night lit by sodium-amber
+streetlights, warm windows, and a few neon signs in the section colors. All of it is procedural; there are no
+texture downloads.
+
+- **Time of day** comes from keyframes in `src/world/lighting/timeOfDay.ts` (sun and moon direction, colors,
+  fog, exposure). The sky also feeds the reflections in paint, glass, and the pond.
+- **Surfaces** get their detail from shaders matched by material name (`src/world/lighting/surfaceShaders.ts`):
+  asphalt grain and lane wear, paving joints, grass variation, lamp pools on the ground at night, and soft contact
+  shading where walls meet the ground.
+- **City buildings** are assembled at runtime at each block's exact size (`src/world/scene/buildingPlan.ts`): a
+  wall box whose shader draws the windows, plus plinth, awnings, cornice, parapet, rooftop props, and on a few
+  storefronts a neon sign. Wall colors are `WALL_COLORS`; blocks come from `BUILDINGS` in the layout.
+- **Night glow** for windows, lamps, signs, and the robot is a table of material names in
+  `src/world/lighting/Lighting.tsx` (`NIGHT_GLOW`).
 
 ## Replacing placeholders
 

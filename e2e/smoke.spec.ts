@@ -97,7 +97,7 @@ test('drive into the Career zone, press E, read MetLife and the dates, drive off
 test('driving through the pond splashes and leaves wet tracks', async ({ page }) => {
   const errors = collectErrors(page);
   await startDriving(page);
-  await place(page, -35, 14, NORTH); // south shore, facing across the pond
+  await place(page, -38, 14, NORTH); // south shore, between the park trees, facing across the pond
 
   await page.keyboard.down('KeyW');
   await expect.poll(() => events(page), { timeout: 10_000 }).toContain('splash');

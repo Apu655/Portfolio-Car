@@ -196,6 +196,13 @@ export function Car() {
     if (m.brakelight) m.brakelight.emissiveIntensity = telemetry.braking ? 4 : 0.3 + night * 1.2;
     if (m.reverselight) m.reverselight.emissiveIntensity = telemetry.reversing ? 3 : 0.05;
     if (m.headlight) m.headlight.emissiveIntensity = 0.5 + night * 3;
+    // The street lamps' pools are painted on the ground and light nothing above it, so at night the paint takes a
+    // faint lift of its own color, as if the city's light bounced onto it, and mirrors more of the moonlit sky. The
+    // body's shape then still reads from the high camera (R16).
+    if (m.car_paint) {
+      m.car_paint.emissive.copy(m.car_paint.color).multiplyScalar(0.25 * night);
+      m.car_paint.envMapIntensity = 1 + night * 1.5;
+    }
     for (const light of headlights.current) if (light) light.intensity = night * 90;
   });
 
