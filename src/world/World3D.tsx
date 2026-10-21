@@ -86,13 +86,14 @@ export default function World3D() {
               <Props />
               <Footballs />
               <Car />
+              {/* Inside the physics world: the robot's bump sensor follows it (Landmarks). */}
+              <Landmarks />
             </Physics>
             <Water />
             <Billboard />
             <SectionGates />
             <RoadsideBillboards detail={tier === 'low' ? 'low' : 'high'} />
             <RoadsideCaptionProjector />
-            <Landmarks />
             <FollowCamera revealing={revealing} onRevealDone={() => setRevealing(false)} />
             <OcclusionFade />
             <PostFx bloomScale={settings.bloomScale} bloomIntensity={settings.bloomIntensity} />

@@ -8,10 +8,12 @@ const PAPER = papers.find((p) => p.id === ROBOT.itemId)!;
 
 /**
  * The SeCAREly robot's greeting (R9): a speech bubble over its head while the car is near. It names the paper and
- * its one-line description; pressing E in the zone, or tapping the title, opens the paper.
+ * its one-line description; pressing E in the zone, or tapping the title, opens the paper. Right after a bump, the
+ * greeting line gives way to what the robot says about it.
  */
 export function RobotBubble() {
   const showing = useRoadsideCaption((s) => s.bubble);
+  const quip = useRoadsideCaption((s) => s.quip);
   const inZone = usePortfolio((s) => s.nearStop?.name === ROBOT.name);
   const navigate = usePortfolio((s) => s.navigate);
   const panelOpen = usePortfolio((s) => s.panelOpen);
@@ -26,7 +28,9 @@ export function RobotBubble() {
         className="robot-bubble"
         style={{ visibility: 'hidden' }}
       >
-        <span className="robot-bubble__hello">Hi! I'm the SeCAREly assistant.</span>
+        <span className="robot-bubble__hello" aria-live="polite">
+          {quip ?? "Hi! I'm the SeCAREly assistant."}
+        </span>
         <button type="button" className="roadside-caption__open" onClick={() => navigate(zoneSelection(ROBOT), { travel: false })}>
           {PAPER.title}
         </button>

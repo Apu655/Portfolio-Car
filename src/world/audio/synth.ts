@@ -177,6 +177,23 @@ export function uiSound(ctx: BaseAudioContext, out: AudioNode, kind: 'open' | 'c
   }
 }
 
+/** The robot after a bump: a little "oof" knock, then a rising-falling run of chirps, R2-style. */
+export function chirp(ctx: BaseAudioContext, out: AudioNode, variant: number, when: number): number {
+  tone(ctx, out, when, 'triangle', 180, 0.18, 0.09, 120);
+  const runs = [
+    [900, 1500, 1100, 1700],
+    [1300, 800, 1400, 950],
+    [1000, 1600, 700, 1250],
+  ];
+  const notes = runs[variant % runs.length];
+  notes.forEach((freq, i) => {
+    const at = when + 0.11 + i * 0.085;
+    tone(ctx, out, at, 'square', freq, 0.045, 0.07, freq * (i % 2 ? 0.75 : 1.35));
+    tone(ctx, out, at, 'sine', freq * 2, 0.03, 0.06);
+  });
+  return 0.11 + notes.length * 0.085 + 0.1;
+}
+
 /** Recover: a quick whoosh as the car is set back on its wheels. */
 export function whoosh(ctx: BaseAudioContext, out: AudioNode, when: number): number {
   const source = noiseSource(ctx);

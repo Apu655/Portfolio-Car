@@ -1,18 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { CylinderCollider, RigidBody, type IntersectionEnterPayload, type RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 import { projects } from '../../content/portfolio';
+import { ROBOT_LINES } from '../../content/robotLines';
 import { usePortfolio } from '../../state/store';
+import { carRefs } from '../carRef';
+import { distanceToCollider, STATIC_COLLIDERS } from '../district/colliders';
 import { CAMPUS, PROJECTS_HALL, ROBOT, SECTION_LETTERS, zoneFor } from '../district/layout';
-import { telemetry } from '../events';
+import { emit, telemetry } from '../events';
 import { bubbleElement, useRoadsideCaption } from '../roadsideCaptions';
 import { dissolveTargets, makeDissolvable } from './dissolve';
 import { enableShadows, MODEL_URLS, useModel } from './District';
 import { robotPose } from './robotMotion';
+import { AT_HOME, hitRobot, REACTION, stepReaction } from './robotReaction';
 import { Selectable } from './Selectable';
 import { loadImage, paintHallSign, paintHeader } from './signPaint';
 
 const ROBOT_ZONE = zoneFor('research');
+/** Share of its speed the car keeps after bumping the robot: a jolt, not a stop. */
+const BUMP_KEEP = 0.85;
+/** How close (m) the car may be to the robot's way home before it waits for the car to move. */
+const BLOCK_RANGE = ROBOT.radius + 2;
+
+/** Whether the robot can stand at this offset from home: clear of every wall, post, and building. */
+const clearAt = (x: number, z: number) =>
+  STATIC_COLLIDERS.every((c) => distanceToCollider(c, ROBOT.position[0] + x, ROBOT.position[1] + z) > ROBOT.radius * 0.8);
+
+/** Distance from point p to the segment a–b (x, z). */
+function toSegment(p: [number, number], a: [number, number], b: [number, number]): number {
+  const dx = b[0] - a[0];
+  const dz = b[1] - a[1];
+  const length2 = dx * dx + dz * dz;
+  const t = length2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / length2)) : 0;
+  return Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dz * t));
+}
 /** Pixels at the top of the screen the HUD's top bar covers. */
 const BUBBLE_TOP_ROOM = 90;
 
@@ -89,28 +111,85 @@ export function Landmarks() {
 
   const point = useMemo(() => new THREE.Vector3(), []);
   const robotGroup = useMemo(() => new THREE.Group(), []);
-  useFrame(({ clock, camera, size }) => {
+  const turn = useMemo(() => ({ yaw: ROBOT.facing, lean: new THREE.Quaternion(), spin: new THREE.Quaternion(), axis: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0) }), []);
+  const robotBody = useRef<RapierRigidBody>(null);
+  const reaction = useRef(AT_HOME);
+  const quipUntil = useRef(0);
+  const now = useRef(0);
+
+  // The car ran into the robot (KTD4 of the knock-overs and boost plan): shove it, jolt the car, and maybe quip.
+  const onBump = ({ other }: IntersectionEnterPayload) => {
+    const car = carRefs.body;
+    if (!car || other.rigidBody?.handle !== car.handle) return;
+    const p = car.translation();
+    const v = car.linvel();
+    const [ox, oz] = reaction.current.offset;
+    const result = hitRobot(reaction.current, {
+      time: now.current,
+      toCar: [p.x - (ROBOT.position[0] + ox), p.z - (ROBOT.position[1] + oz)],
+      carVelocity: [v.x, v.z],
+      lines: ROBOT_LINES.length,
+      clear: clearAt,
+    });
+    if (!result.hit) return;
+    reaction.current = result.state;
+    car.setLinvel({ x: v.x * BUMP_KEEP, y: v.y, z: v.z * BUMP_KEEP }, true);
+    emit({ type: 'robotHit', position: [ROBOT.position[0] + ox, 1.5, ROBOT.position[1] + oz] });
+    if (result.line !== null) {
+      useRoadsideCaption.getState().setQuip(ROBOT_LINES[result.line]);
+      quipUntil.current = now.current + REACTION.quipSeconds;
+    }
+  };
+
+  useFrame(({ clock, camera, size }, dt) => {
+    now.current = clock.elapsedTime;
     const state = usePortfolio.getState();
     const captions = useRoadsideCaption.getState();
     const [cx, , cz] = telemetry.position;
+
+    // Where the bump has left the robot, waiting on its way home while the car sits in the way.
+    const [ox, oz] = reaction.current.offset;
+    const carBlocks = toSegment([cx - ROBOT.position[0], cz - ROBOT.position[1]], [ox, oz], [0, 0]) < BLOCK_RANGE;
+    const step = stepReaction(reaction.current, { time: clock.elapsedTime, carBlocks, reducedMotion: state.reducedMotion });
+    reaction.current = step.state;
+    const { offset, tilt, lean, walkHeading } = step.pose;
+    const x = ROBOT.position[0] + offset[0];
+    const z = ROBOT.position[1] + offset[1];
+    robotBody.current?.setNextKinematicTranslation({ x, y: 0, z });
+    if (quipUntil.current && clock.elapsedTime > quipUntil.current) {
+      quipUntil.current = 0;
+      captions.setQuip(null);
+    }
+    const quipping = captions.quip !== null;
+
+    // Turn to walk home, then back to face the road; lean away from the car while stumbling.
+    const targetYaw = walkHeading ?? ROBOT.facing;
+    const delta = Math.atan2(Math.sin(targetYaw - turn.yaw), Math.cos(targetYaw - turn.yaw));
+    turn.yaw += delta * Math.min(1, dt * 8);
+    turn.spin.setFromAxisAngle(turn.up, turn.yaw);
+    const leaning = tilt !== 0 && (lean[0] !== 0 || lean[1] !== 0);
+    if (leaning) turn.lean.setFromAxisAngle(turn.axis.set(lean[1], 0, -lean[0]), tilt);
+    robotGroup.quaternion.copy(leaning ? turn.lean.multiply(turn.spin) : turn.spin);
+
     const pose = robotPose({
-      toCar: [cx - ROBOT.position[0], cz - ROBOT.position[1]],
-      facing: ROBOT.facing,
+      toCar: [cx - x, cz - z],
+      facing: turn.yaw,
       time: clock.elapsedTime,
       inZone: state.nearStop?.name === ROBOT_ZONE.name,
       reducedMotion: state.reducedMotion,
       greeting: captions.bubble,
     });
-    robotGroup.position.y = pose.bob;
+    robotGroup.position.set(offset[0], pose.bob, offset[1]);
     if (parts.head) parts.head.rotation.y = pose.headYaw;
     if (parts.armRight) parts.armRight.rotation.z = pose.armAngle;
-    captions.setBubble(pose.greeting);
+    const showing = pose.greeting || quipping;
+    captions.setBubble(showing);
 
-    // Pin the greeting bubble just above the robot's head, or beside it (left, away from the oncoming car) when the
-    // top bar leaves no room above.
+    // Pin the bubble just above the robot's head, or beside it (left, away from the oncoming car) when the top
+    // bar leaves no room above.
     const element = bubbleElement.current;
-    if (!pose.greeting || !element) return;
-    point.set(ROBOT.position[0], ROBOT.height + 0.9 + pose.bob, ROBOT.position[1]).project(camera);
+    if (!showing || !element) return;
+    point.set(x, ROBOT.height + 0.9 + pose.bob, z).project(camera);
     const hidden = point.z > 1 || Math.abs(point.x) > 1.1 || Math.abs(point.y) > 1.1;
     element.style.visibility = hidden ? 'hidden' : '';
     if (hidden) return;
@@ -127,12 +206,16 @@ export function Landmarks() {
   return (
     <>
       <Selectable selection={{ section: 'research', itemId: ROBOT_ZONE.itemId }}>
-        <group position={[ROBOT.position[0], 0, ROBOT.position[1]]} rotation={[0, ROBOT.facing, 0]}>
+        <group position={[ROBOT.position[0], 0, ROBOT.position[1]]}>
           <primitive object={robotGroup}>
             <primitive object={parts.robot} />
           </primitive>
         </group>
       </Selectable>
+      {/* A sensor that follows the robot: the car passes through and bumps it instead of stopping against it. */}
+      <RigidBody ref={robotBody} type="kinematicPosition" colliders={false} position={[ROBOT.position[0], 0, ROBOT.position[1]]}>
+        <CylinderCollider sensor args={[ROBOT.height / 2, ROBOT.radius]} position={[0, ROBOT.height / 2, 0]} onIntersectionEnter={onBump} />
+      </RigidBody>
       <Selectable selection={{ section: 'projects' }}>
         <group position={[PROJECTS_HALL.center[0], 0, PROJECTS_HALL.center[1]]} rotation={[0, PROJECTS_HALL.facing, 0]}>
           <primitive object={parts.hall} />

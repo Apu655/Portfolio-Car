@@ -14,7 +14,6 @@ import {
   ROADSIDE_FRAME,
   ROADSIDE_SLOTS,
   roadsidePoint,
-  ROBOT,
   SECTION_GATES,
   TOWER,
   TREES,
@@ -67,8 +66,7 @@ export const STATIC_COLLIDERS: StaticCollider[] = [
   box('kiosk-contact', CONTACT_KIOSK.position[0], CONTACT_KIOSK.position[1], 1.7, 4.4, 0.8),
   box('projects-hall', PROJECTS_HALL.center[0], PROJECTS_HALL.center[1], PROJECTS_HALL.size[0] / 2, PROJECTS_HALL.height, PROJECTS_HALL.size[1] / 2),
   box('campus', CAMPUS.center[0], CAMPUS.center[1], CAMPUS.size[0] / 2, CAMPUS.height, CAMPUS.size[1] / 2),
-  // The robot stands in the road on purpose (R8): solid, so the car stops against it.
-  cylinder('robot', ROBOT.position[0], ROBOT.position[1], ROBOT.radius, ROBOT.height),
+  // The robot is not here: it gets bumped aside rather than stopping the car (src/world/scene/Landmarks.tsx).
   ...SECTION_GATES.flatMap((g) =>
     [-1, 1].map((side) => {
       const [x, z] = gatePoint(g, side * g.halfSpan, 0);

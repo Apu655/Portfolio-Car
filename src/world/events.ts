@@ -14,7 +14,8 @@ export type GameEvent =
   | { type: 'waterExit' }
   | { type: 'zoneEnter'; section: TowerSection }
   | { type: 'zoneExit'; section: TowerSection }
-  | { type: 'recover' };
+  | { type: 'recover' }
+  | { type: 'robotHit'; position: Vec3 };
 
 export type GameEventType = GameEvent['type'];
 type Handler<T extends GameEventType> = (event: Extract<GameEvent, { type: T }>) => void;

@@ -27,18 +27,25 @@ interface CaptionState {
   board: string | null;
   /** Whether the robot's greeting bubble is showing. */
   bubble: boolean;
+  /** What the robot just said after being bumped, while it shows. */
+  quip: string | null;
   setNearest(board: string | null): void;
   setBubble(bubble: boolean): void;
+  setQuip(quip: string | null): void;
 }
 
 export const useRoadsideCaption = create<CaptionState>((set, get) => ({
   board: null,
   bubble: false,
+  quip: null,
   setNearest: (board) => {
     if (get().board !== board) set({ board });
   },
   setBubble: (bubble) => {
     if (get().bubble !== bubble) set({ bubble });
+  },
+  setQuip: (quip) => {
+    if (get().quip !== quip) set({ quip });
   },
 }));
 

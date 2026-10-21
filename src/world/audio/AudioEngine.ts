@@ -10,7 +10,7 @@ import { EngineSynth } from './engineSynth';
 import { MusicBed } from './musicBed';
 import { SampleBank } from './sampleBank';
 import { useAudioSettings } from './settings';
-import { impact, noiseSource, plunge, splash, uiSound, whoosh } from './synth';
+import { chirp, impact, noiseSource, plunge, splash, uiSound, whoosh } from './synth';
 import { VoiceLimiter } from './voiceLimiter';
 
 export interface Listener {
@@ -83,6 +83,10 @@ export class AudioEngine {
         this.oneShot('waterEnter', 0.5, telemetry.position, 1, (out, when) => plunge(this.ctx!, out, intensity, when), 1.2);
       }),
       on('recover', () => this.oneShot('recover', 0.5, null, 0.8, (out, when) => whoosh(this.ctx!, out, when))),
+      on('robotHit', (e) => {
+        const variant = Math.floor(Math.random() * 3);
+        this.oneShot('robotHit', 0.4, e.position, 0.9, (out, when) => chirp(this.ctx!, out, variant, when), 0.6);
+      }),
       on('zoneEnter', () => this.ui('zone')),
     ];
     const unsubscribe = useAudioSettings.subscribe(() => this.applySettings());
