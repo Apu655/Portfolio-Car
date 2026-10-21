@@ -10,7 +10,7 @@ import { EngineSynth } from './engineSynth';
 import { MusicBed } from './musicBed';
 import { SampleBank } from './sampleBank';
 import { useAudioSettings } from './settings';
-import { chirp, impact, noiseSource, plunge, splash, uiSound, whoosh } from './synth';
+import { chirp, impact, noiseSource, plunge, poleRing, splash, treeCreak, uiSound, whoosh } from './synth';
 import { VoiceLimiter } from './voiceLimiter';
 
 export interface Listener {
@@ -25,6 +25,11 @@ export type UiSound = 'open' | 'close' | 'hover' | 'toggle' | 'zone';
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 /** Distance (m) at which a sound is at half level. */
 const HALF_DISTANCE = 14;
+
+/** What knocking a lamp or tree over sounds like: a metal clang or a wood crack, louder for a harder hit. */
+export function knockVoice(kind: 'lamp' | 'tree', intensity: number): { material: PropMaterial; level: number } {
+  return { material: kind === 'lamp' ? 'metal' : 'wood', level: 0.5 + intensity * 0.5 };
+}
 
 /** The nitro hiss level while the boost fires: a steady roar that opens up a little with speed. */
 export function nitroHiss({ boosting, speed }: { boosting: boolean; speed: number }): number {
@@ -83,6 +88,14 @@ export class AudioEngine {
         this.oneShot('waterEnter', 0.5, telemetry.position, 1, (out, when) => plunge(this.ctx!, out, intensity, when), 1.2);
       }),
       on('recover', () => this.oneShot('recover', 0.5, null, 0.8, (out, when) => whoosh(this.ctx!, out, when))),
+      on('knock', (e) => {
+        const voice = knockVoice(e.kind, e.intensity);
+        const pick = this.bank.pick(voice.material, Math.max(0.7, e.intensity));
+        this.oneShot(`knock:${e.position.join(',')}`, 0.2, e.position, voice.level, (out, when) => {
+          const ring = e.kind === 'lamp' ? poleRing(this.ctx!, out, when) : treeCreak(this.ctx!, out, when);
+          return Math.max(ring, impact(this.ctx!, out, pick.material, pick.tier, pick.variant, when));
+        }, 1.7);
+      }),
       on('robotHit', (e) => {
         const variant = Math.floor(Math.random() * 3);
         this.oneShot('robotHit', 0.4, e.position, 0.9, (out, when) => chirp(this.ctx!, out, variant, when), 0.6);

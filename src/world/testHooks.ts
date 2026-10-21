@@ -14,7 +14,7 @@ export interface DistrictHooks {
   place(x: number, z: number, heading: number): void;
 }
 
-const RECORDED: GameEventType[] = ['impact', 'splash', 'waterEnter', 'waterExit', 'zoneEnter', 'zoneExit', 'recover', 'robotHit'];
+const RECORDED: GameEventType[] = ['impact', 'splash', 'waterEnter', 'waterExit', 'zoneEnter', 'zoneExit', 'recover', 'robotHit', 'knock'];
 
 /** One recording for the page's lifetime, shared by every Canvas the visitor opens. */
 const events: GameEventType[] = [];

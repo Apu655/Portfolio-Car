@@ -6,14 +6,11 @@ import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
 import { BUILDINGS, SECTION_GATES, TOWER } from '../district/layout';
 import { installLamps } from '../lighting/surfaceShaders';
-import { knockVersion, patchHideable, refreshKnockFlags } from './breakables';
+import { HIDEABLE, knockVersion, patchHideable, refreshKnockFlags } from './breakables';
 import { CityBuildings } from './CityBuildings';
 import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
 import { useSurfaceDetail } from './useSurfaceDetail';
 import { Selectable } from './Selectable';
-
-/** The district's merged lamp and tree meshes, whose knocked-over objects are hidden by id (breakables.ts). */
-const HIDEABLE = ['lamp_posts', 'lamp_heads', 'tree_trunks', 'tree_pits', 'tree_leaf_a', 'tree_leaf_b', 'tree_leaf_c'];
 
 export const MODEL_URLS = {
   district: '/models/district.glb',

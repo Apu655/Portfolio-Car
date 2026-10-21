@@ -10,6 +10,7 @@ import { stickToDrive } from '../drive/screenSteer';
 import { emit, telemetry } from '../events';
 import { lightingState } from '../lighting/state';
 import { FULL_TANK, tickBoost } from '../physics/boost';
+import { CAR_GROUPS, WHEEL_RAY_GROUPS } from '../physics/groups';
 import { WaterContact } from '../physics/water';
 import {
   applyDrive,
@@ -127,7 +128,7 @@ export function Car() {
     drive.current = applyDrive(v, input, drive.current, dt, boost.current.active);
 
     const wet = water.update(chassis, v, dt);
-    v.updateVehicle(dt, rapier.QueryFilterFlags.EXCLUDE_SENSORS);
+    v.updateVehicle(dt, rapier.QueryFilterFlags.EXCLUDE_SENSORS, WHEEL_RAY_GROUPS);
 
     // Recovery: R (or the touch button) right away; automatically after 2 s upside down.
     const speed = forwardSpeed(v);
@@ -220,7 +221,7 @@ export function Car() {
       ccd
       canSleep={false}
     >
-      <CuboidCollider args={[...CAR_TUNING.chassisHalf]} position={[0, CAR_TUNING.chassisOffsetY, 0]} mass={CAR_TUNING.mass} friction={0.4} restitution={0.1} />
+      <CuboidCollider args={[...CAR_TUNING.chassisHalf]} position={[0, CAR_TUNING.chassisOffsetY, 0]} mass={CAR_TUNING.mass} friction={0.4} restitution={0.1} collisionGroups={CAR_GROUPS} />
       <group ref={visual}>
         <primitive object={model.scene} position={[0, VISUAL_OFFSET_Y, 0]} />
         <group position={[0, VISUAL_OFFSET_Y, 0]}>

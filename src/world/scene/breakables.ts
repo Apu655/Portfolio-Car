@@ -83,3 +83,61 @@ export function patchHideable(mesh: THREE.Mesh): void {
   }
   mesh.customDepthMaterial = depthMaterial;
 }
+
+/** The district's merged lamp and tree meshes, whose knocked-over objects are hidden by id. */
+export const HIDEABLE = ['lamp_posts', 'lamp_heads', 'tree_trunks', 'tree_pits', 'tree_leaf_a', 'tree_leaf_b', 'tree_leaf_c'];
+
+/**
+ * Object `id` cut out of the merged meshes named `names` under `root`, as its own group around `origin` (its base
+ * in world space), for the copy thrown when it is knocked over. Only the triangles whose vertices all carry the
+ * id are kept, without the id attribute, and each part draws with its own transparent copy of its material, so
+ * the copy can fade without touching the city, and the hide patch never applies to it.
+ */
+export function cutObject(root: THREE.Object3D, names: readonly string[], id: number, origin: readonly [number, number, number]): THREE.Group {
+  const group = new THREE.Group();
+  const p = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const normalMatrix = new THREE.Matrix3();
+  for (const name of names) {
+    root.getObjectByName(name)?.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const source = mesh.geometry;
+      const ids = source.getAttribute('_obj_index');
+      if (!ids) return;
+      const position = source.getAttribute('position');
+      const normal = source.getAttribute('normal');
+      const index = source.index;
+      const count = index ? index.count : position.count;
+      mesh.updateWorldMatrix(true, false);
+      normalMatrix.getNormalMatrix(mesh.matrixWorld);
+      const positions: number[] = [];
+      const normals: number[] = [];
+      for (let t = 0; t < count; t += 3) {
+        const corners = [0, 1, 2].map((k) => (index ? index.getX(t + k) : t + k));
+        if (corners.some((v) => Math.round(ids.getX(v)) !== id)) continue;
+        for (const v of corners) {
+          // Through the accessors, so quantized (normalized) model data comes out in meters.
+          p.fromBufferAttribute(position, v).applyMatrix4(mesh.matrixWorld);
+          positions.push(p.x - origin[0], p.y - origin[1], p.z - origin[2]);
+          if (normal) {
+            n.fromBufferAttribute(normal, v).applyMatrix3(normalMatrix).normalize();
+            normals.push(n.x, n.y, n.z);
+          }
+        }
+      }
+      if (!positions.length) return;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      if (normals.length) geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      else geometry.computeVertexNormals();
+      const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material).clone();
+      material.transparent = true;
+      const part = new THREE.Mesh(geometry, material);
+      part.castShadow = true;
+      part.receiveShadow = true;
+      group.add(part);
+    });
+  }
+  return group;
+}

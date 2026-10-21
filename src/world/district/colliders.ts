@@ -104,14 +104,18 @@ export const STATIC_COLLIDERS: StaticCollider[] = [
   ...[-1, 1].map((side) => box(`hedge-${side}`, PLAZAS[0].center[0], TOWER.center[1] + side * 12.5, 7, 1.05, 0.6)),
   // City blocks: each building's footprint, up to its parapet.
   ...BUILDINGS.map((b, i) => box(`building-${i}`, b.center[0], b.center[1], b.half[0], b.height, b.half[1])),
-  // Streetlight poles and tree trunks.
-  ...LAMPS.map((l, i) => cylinder(`lamp-${i}`, l.position[0], l.position[2], 0.2, 6.5)),
-  ...TREES.map((t, i) => cylinder(`tree-${i}`, t.position[0], t.position[2], 0.28 * t.scale, 3)),
+  // Streetlight poles and tree trunks are not here: the car knocks them over (BREAKABLE_COLLIDERS).
   // Invisible walls around the world.
   box('wall-north', 0, -WORLD_HALF - 1, WORLD_HALF + 2, 6, 1),
   box('wall-south', 0, WORLD_HALF + 1, WORLD_HALF + 2, 6, 1),
   box('wall-east', WORLD_HALF + 1, 0, 1, 6, WORLD_HALF + 2),
   box('wall-west', -WORLD_HALF - 1, 0, 1, 6, WORLD_HALF + 2),
+];
+
+/** Streetlight poles and tree trunks: sensors the car knocks over rather than walls it stops against. */
+export const BREAKABLE_COLLIDERS: Array<CylinderCollider & { object: 'lamp' | 'tree'; index: number }> = [
+  ...LAMPS.map((l, i) => ({ ...cylinder(`lamp-${i}`, l.position[0], l.position[2], 0.2, 6.5), object: 'lamp' as const, index: i })),
+  ...TREES.map((t, i) => ({ ...cylinder(`tree-${i}`, t.position[0], t.position[2], 0.28 * t.scale, 3), object: 'tree' as const, index: i })),
 ];
 
 /** Horizontal distance from (x, z) to a collider's footprint (0 when inside). */

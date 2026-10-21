@@ -1,5 +1,5 @@
 // Covers AE4: no audio context exists until the visitor's first gesture.
-import { AudioEngine, nitroHiss, voiceGain } from './AudioEngine';
+import { AudioEngine, knockVoice, nitroHiss, voiceGain } from './AudioEngine';
 import { useAudioSettings } from './settings';
 
 describe('audio unlock (AE4)', () => {
@@ -48,5 +48,17 @@ describe('the nitro hiss', () => {
 
   it('roars a little louder the faster the car goes', () => {
     expect(nitroHiss({ boosting: true, speed: 30 })).toBeGreaterThan(nitroHiss({ boosting: true, speed: 2 }));
+  });
+});
+
+describe('knocking over a lamp or a tree', () => {
+  it('a lamp clangs like metal and a tree cracks like wood', () => {
+    expect(knockVoice('lamp', 0.8).material).toBe('metal');
+    expect(knockVoice('tree', 0.8).material).toBe('wood');
+  });
+
+  it('a harder hit plays louder', () => {
+    expect(knockVoice('lamp', 1).level).toBeGreaterThan(knockVoice('lamp', 0.3).level);
+    expect(knockVoice('tree', 1).level).toBeGreaterThan(knockVoice('tree', 0.3).level);
   });
 });

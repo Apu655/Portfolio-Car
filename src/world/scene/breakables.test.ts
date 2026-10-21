@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { LAMPS, TREES } from '../district/layout';
-import { breakableOf, BREAKABLE, isKnocked, knock, knockVersion, lampId, patchHideable, treeId, writeKnockFlags } from './breakables';
+import { breakableOf, BREAKABLE, cutObject, isKnocked, knock, knockVersion, lampId, patchHideable, treeId, writeKnockFlags } from './breakables';
 import { makeDissolvable } from './dissolve';
 
 describe('knocked-over lamps and trees', () => {
@@ -71,5 +71,46 @@ describe('hiding a knocked object inside a merged mesh', () => {
     patchHideable(a);
     patchHideable(b);
     expect(compile(material).shader.vertexShader.match(/attribute float _obj_index/g)?.length).toBe(1);
+  });
+});
+
+describe('cutting a knocked object out for its flying copy', () => {
+  /** Two one-triangle objects (ids 2 and 7) merged in one mesh, placed by a node transform like the model's. */
+  function merged() {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0, 0, 6, 0, 0, 5, 1, 0], 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(18).fill(0).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+    g.setAttribute('_obj_index', new THREE.Float32BufferAttribute([2, 2, 2, 7, 7, 7], 1));
+    g.setIndex([0, 1, 2, 3, 4, 5]);
+    const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ name: 'bark' }));
+    mesh.name = 'tree_trunks';
+    mesh.position.set(10, 0, 0);
+    const root = new THREE.Group();
+    root.add(mesh);
+    root.updateMatrixWorld(true);
+    return { root, material: mesh.material };
+  }
+
+  it('keeps only that object’s triangles, in world space around its base', () => {
+    const { root } = merged();
+    const copy = cutObject(root, ['tree_trunks'], 7, [15, 0, 0]);
+    const mesh = copy.children[0] as THREE.Mesh;
+    const position = mesh.geometry.getAttribute('position');
+    expect(position.count).toBe(3);
+    expect([position.getX(0), position.getX(1), position.getX(2)]).toEqual([0, 1, 0]);
+    expect(mesh.geometry.getAttribute('_obj_index')).toBeUndefined();
+  });
+
+  it('draws with its own fading copy of the material, so the original and the hide patch are untouched', () => {
+    const { root, material } = merged();
+    const mesh = cutObject(root, ['tree_trunks'], 2, [10, 0, 0]).children[0] as THREE.Mesh;
+    expect(mesh.material).not.toBe(material);
+    expect((mesh.material as THREE.Material).transparent).toBe(true);
+    expect((mesh.material as THREE.Material).customProgramCacheKey()).not.toContain('ce-hide');
+  });
+
+  it('finds nothing for an id the meshes do not hold', () => {
+    const { root } = merged();
+    expect(cutObject(root, ['tree_trunks'], 99, [0, 0, 0]).children).toHaveLength(0);
   });
 });

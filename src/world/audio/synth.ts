@@ -194,6 +194,19 @@ export function chirp(ctx: BaseAudioContext, out: AudioNode, variant: number, wh
   return 0.11 + notes.length * 0.085 + 0.1;
 }
 
+/** A knocked-over lamp post: the pole's long metallic ring under the clang of the hit. */
+export function poleRing(ctx: BaseAudioContext, out: AudioNode, when: number): number {
+  for (const [freq, peak, decay] of [[410, 0.16, 1.6], [1130, 0.08, 1.1], [2270, 0.04, 0.6]] as const) tone(ctx, out, when, 'sine', freq, peak, decay);
+  return 1.7;
+}
+
+/** A knocked-over tree: a low creak as the trunk gives, then a rustle of leaves. */
+export function treeCreak(ctx: BaseAudioContext, out: AudioNode, when: number): number {
+  tone(ctx, out, when + 0.04, 'sawtooth', 95, 0.05, 0.45, 62);
+  noiseBurst(ctx, out, when + 0.08, 'bandpass', 3200, 0.8, 0.12, 0.5);
+  return 0.6;
+}
+
 /** Recover: a quick whoosh as the car is set back on its wheels. */
 export function whoosh(ctx: BaseAudioContext, out: AudioNode, when: number): number {
   const source = noiseSource(ctx);
