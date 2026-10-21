@@ -1,13 +1,19 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { CuboidCollider, CylinderCollider, RigidBody, TrimeshCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { STATIC_COLLIDERS } from '../district/colliders';
 import { BUILDINGS, SECTION_GATES, TOWER } from '../district/layout';
+import { installLamps } from '../lighting/surfaceShaders';
+import { knockVersion, patchHideable, refreshKnockFlags } from './breakables';
 import { CityBuildings } from './CityBuildings';
 import { dissolveTargets, makeDissolvable, type Dissolvable } from './dissolve';
 import { useSurfaceDetail } from './useSurfaceDetail';
 import { Selectable } from './Selectable';
+
+/** The district's merged lamp and tree meshes, whose knocked-over objects are hidden by id (breakables.ts). */
+const HIDEABLE = ['lamp_posts', 'lamp_heads', 'tree_trunks', 'tree_pits', 'tree_leaf_a', 'tree_leaf_b', 'tree_leaf_c'];
 
 export const MODEL_URLS = {
   district: '/models/district.glb',
@@ -98,6 +104,23 @@ export function District() {
   // Building footprints for the ground's contact shading; the records hold world-axis half sizes.
   const footprints = useMemo(() => BUILDINGS.map((b) => ({ x: b.center[0], z: b.center[1], hx: b.half[0], hz: b.half[1], rotationY: 0 })), []);
   useSurfaceDetail(parts.scene, footprints);
+
+  // Lamps and trees knocked over hide inside their merged meshes and lose their light pools. The set outlives this
+  // component, so a remount refreshes from it straight away.
+  useEffect(() => {
+    for (const name of HIDEABLE) {
+      parts.scene.getObjectByName(name)?.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) patchHideable(o as THREE.Mesh);
+      });
+    }
+  }, [parts]);
+  const knockSeen = useRef(-1);
+  useFrame(() => {
+    if (knockVersion() === knockSeen.current) return;
+    knockSeen.current = knockVersion();
+    refreshKnockFlags();
+    installLamps();
+  });
 
   useEffect(() => {
     parts.dissolvables.forEach(([key, d]) => dissolveTargets.set(key, d));

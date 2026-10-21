@@ -13,6 +13,11 @@ import bpy
 
 from lib import kit
 
+# Object ids for knock-over lamps and trees (`_OBJ_INDEX`), matching BREAKABLE in src/world/scene/breakables.ts:
+# lamp i is LAMP_ID_BASE + i, tree i is TREE_ID_BASE + i, and 0 means untagged.
+LAMP_ID_BASE = 1
+TREE_ID_BASE = 513
+
 
 def rounded_rect(half_x, half_z, radius, steps_per_corner=10):
     """Points around a rounded rectangle (web x, z), counterclockwise seen from above."""
@@ -221,17 +226,19 @@ def build(layout):
     for idx, t in enumerate(layout["TREES"]):
         x, _, z = t["position"]
         s = t["scale"]
+        # Every part carries the tree's id, so a knocked-over tree can vanish from the merged meshes.
+        tid = TREE_ID_BASE + idx
         if t.get("pit"):
-            pits.append(kit.box(f"pit{idx}", 1.5, 0.17, 1.5, x, 0, z, None, bevel=0.03))
-        trunks.append(kit.cylinder(f"trunk{idx}", 0.2 * s, 2.8 * s, x, 0, z, None, vertices=8, top_radius=0.13 * s))
+            pits.append(kit.tag_index(kit.box(f"pit{idx}", 1.5, 0.17, 1.5, x, 0, z, None, bevel=0.03), tid))
+        trunks.append(kit.tag_index(kit.cylinder(f"trunk{idx}", 0.2 * s, 2.8 * s, x, 0, z, None, vertices=8, top_radius=0.13 * s), tid))
         key = ("leaf_a", "leaf_b", "leaf_c")[t["variant"]]
         # A wide, low underside clump, then three or four sunlit clumps on top of it.
-        undersides[key].append(kit.ico(f"under{idx}", 1.75 * s, x, 3.15 * s, z, None, subdivisions=2, scale=(1, 0.6, 1), smooth_angle=80))
+        undersides[key].append(kit.tag_index(kit.ico(f"under{idx}", 1.75 * s, x, 3.15 * s, z, None, subdivisions=2, scale=(1, 0.6, 1), smooth_angle=80), tid))
         for c in range(rnd.randint(3, 4)):
             a = rnd.uniform(0, math.tau)
             d = rnd.uniform(0.3, 0.9) * s
             r = rnd.uniform(1.0, 1.35) * s
-            canopies[key].append(kit.ico(f"canopy{idx}_{c}", r, x + math.cos(a) * d, (3.7 + c * 0.35) * s, z + math.sin(a) * d, None, subdivisions=2, scale=(1, 0.85, 1), smooth_angle=80))
+            canopies[key].append(kit.tag_index(kit.ico(f"canopy{idx}_{c}", r, x + math.cos(a) * d, (3.7 + c * 0.35) * s, z + math.sin(a) * d, None, subdivisions=2, scale=(1, 0.85, 1), smooth_angle=80), tid))
     for o in trunks:
         o.data.materials.append(m["bark"])
     kit.join(trunks, "tree_trunks")
@@ -253,13 +260,16 @@ def build(layout):
         x, _, z = lamp["position"]
         r = lamp["rotationY"]
         fx, fz = -math.sin(r), -math.cos(r)
-        lamp_parts.append(kit.cylinder(f"pole{idx}", 0.12, 6.4, x, 0, z, None, vertices=10, top_radius=0.08))
-        lamp_parts.append(kit.cylinder(f"pole_base{idx}", 0.22, 0.5, x, 0, z, None, vertices=10, bevel=0.04))
-        arm = kit.box(f"arm{idx}", 0.1, 0.1, 1.6, x + fx * 0.75, 6.25, z + fz * 0.75, None, rot=r)
-        lamp_parts.append(arm)
-        # A dark housing with the glowing bulb panel set into its underside.
-        lamp_parts.append(kit.box(f"housing{idx}", 0.56, 0.24, 0.9, x + fx * 1.55, 6.02, z + fz * 1.55, None, bevel=0.06, rot=r))
-        heads.append(kit.box(f"lamp{idx}", 0.42, 0.06, 0.72, x + fx * 1.55, 5.97, z + fz * 1.55, None, bevel=0.02, rot=r))
+        lid = LAMP_ID_BASE + idx
+        parts = [
+            kit.cylinder(f"pole{idx}", 0.12, 6.4, x, 0, z, None, vertices=10, top_radius=0.08),
+            kit.cylinder(f"pole_base{idx}", 0.22, 0.5, x, 0, z, None, vertices=10, bevel=0.04),
+            kit.box(f"arm{idx}", 0.1, 0.1, 1.6, x + fx * 0.75, 6.25, z + fz * 0.75, None, rot=r),
+            # A dark housing with the glowing bulb panel set into its underside.
+            kit.box(f"housing{idx}", 0.56, 0.24, 0.9, x + fx * 1.55, 6.02, z + fz * 1.55, None, bevel=0.06, rot=r),
+        ]
+        lamp_parts.extend(kit.tag_index(o, lid) for o in parts)
+        heads.append(kit.tag_index(kit.box(f"lamp{idx}", 0.42, 0.06, 0.72, x + fx * 1.55, 5.97, z + fz * 1.55, None, bevel=0.02, rot=r), lid))
     for o in lamp_parts:
         o.data.materials.append(m["metal"])
     for o in heads:

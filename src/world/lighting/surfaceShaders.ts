@@ -5,6 +5,7 @@
 // contact shading of the ground mask. Nothing is downloaded, and the look stays tunable here.
 import * as THREE from 'three';
 import { LAMPS, ROADS } from '../district/layout';
+import { isKnocked, lampId } from '../scene/breakables';
 import { addShaderPatch } from '../scene/shaderPatch';
 import { MASK } from './groundMask';
 
@@ -27,12 +28,13 @@ export function surfaceKind(name: string): SurfaceKind | null {
 /** Most streetlights a ground shader takes. */
 export const LAMP_CAP = 48;
 
-/** Every streetlight's head, as (x, z) on the ground under it. */
+/** Every standing streetlight's head, as (x, z) on the ground under it; a knocked-over lamp has no pool. */
 export function lampList(): THREE.Vector2[] {
-  return LAMPS.slice(0, LAMP_CAP).map((l) => {
+  return LAMPS.slice(0, LAMP_CAP).flatMap((l, i) => {
+    if (isKnocked(lampId(i))) return [];
     // The head hangs over the road, 1.55 m out along the lamp's heading.
     const r = l.rotationY;
-    return new THREE.Vector2(l.position[0] - Math.sin(r) * 1.55, l.position[2] - Math.cos(r) * 1.55);
+    return [new THREE.Vector2(l.position[0] - Math.sin(r) * 1.55, l.position[2] - Math.cos(r) * 1.55)];
   });
 }
 

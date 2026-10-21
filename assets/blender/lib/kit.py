@@ -218,6 +218,13 @@ def empty(name, x=0.0, y=0.0, z=0.0, rot=0.0):
     return obj
 
 
+def tag_index(obj, value):
+    """Write `value` on every vertex as `_OBJ_INDEX`, so the runtime can hide this object after it is joined."""
+    attribute = obj.data.attributes.new("_OBJ_INDEX", "FLOAT", "POINT")
+    attribute.data.foreach_set("value", [float(value)] * len(obj.data.vertices))
+    return obj
+
+
 def join(objects, name):
     """Merge meshes (keeping their materials) into one object to save draw calls."""
     objects = [o for o in objects if o is not None]
@@ -255,6 +262,8 @@ def export(path):
         export_yup=True,
         export_apply=True,
         export_extras=True,
+        # Custom vertex attributes whose names start with an underscore, such as `_OBJ_INDEX`.
+        export_attributes=True,
         export_lights=False,
         use_selection=False,
     )
