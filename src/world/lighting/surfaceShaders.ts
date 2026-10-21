@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { LAMPS, ROADS } from '../district/layout';
 import { isKnocked, lampId } from '../scene/breakables';
 import { addShaderPatch } from '../scene/shaderPatch';
-import { MASK } from './groundMask';
+import { LAMP_POOL, lampPoolMap, MASK } from './groundMask';
 
 export type SurfaceKind = 'grass' | 'asphalt' | 'paving' | 'paint';
 
@@ -25,12 +25,9 @@ export function surfaceKind(name: string): SurfaceKind | null {
   return KINDS[name] ?? null;
 }
 
-/** Most streetlights a ground shader takes. */
-export const LAMP_CAP = 48;
-
 /** Every standing streetlight's head, as (x, z) on the ground under it; a knocked-over lamp has no pool. */
 export function lampList(): THREE.Vector2[] {
-  return LAMPS.slice(0, LAMP_CAP).flatMap((l, i) => {
+  return LAMPS.flatMap((l, i) => {
     if (isKnocked(lampId(i))) return [];
     // The head hangs over the road, 1.55 m out along the lamp's heading.
     const r = l.rotationY;
@@ -38,11 +35,15 @@ export function lampList(): THREE.Vector2[] {
   });
 }
 
+/** The streetlight pools on the ground (groundMask.ts): repainted by `installLamps`, 0..255 for 0..LAMP_POOL.max. */
+const lampPoolTexture = new THREE.DataTexture(new Uint8Array(LAMP_POOL.size * LAMP_POOL.size), LAMP_POOL.size, LAMP_POOL.size, THREE.RedFormat, THREE.UnsignedByteType);
+lampPoolTexture.magFilter = THREE.LinearFilter;
+lampPoolTexture.minFilter = THREE.LinearFilter;
+
 /** Uniforms every ground surface shares: updated once per frame or once at load, never per material. */
 export const surfaceUniforms = {
   uNight: { value: 0 },
-  uLamps: { value: Array.from({ length: LAMP_CAP }, () => new THREE.Vector2()) },
-  uLampCount: { value: 0 },
+  uLampPool: { value: lampPoolTexture },
   uGroundMask: { value: null as THREE.Texture | null },
   uMaskHalf: { value: MASK.half },
   uLoop: { value: new THREE.Vector3(ROADS.loop.halfX, ROADS.loop.halfZ, ROADS.loop.cornerRadius) },
@@ -63,20 +64,12 @@ float ceFbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s +=
 `;
 
 const GROUND = /* glsl */ `
-uniform vec2 uLamps[${LAMP_CAP}];
-uniform int uLampCount;
+uniform sampler2D uLampPool;
 uniform sampler2D uGroundMask;
 uniform float uMaskHalf;
 /** Warm pools under the streetlights, strongest right under the head. */
 float ceLampPool(vec2 p) {
-  float pool = 0.0;
-  for (int i = 0; i < ${LAMP_CAP}; i++) {
-    if (i >= uLampCount) break;
-    vec2 d = p - uLamps[i];
-    float d2 = dot(d, d);
-    if (d2 < 140.0) pool += exp(-d2 / 26.0);
-  }
-  return min(pool, 1.4);
+  return texture2D(uLampPool, (p + uMaskHalf) / (2.0 * uMaskHalf)).r * ${LAMP_POOL.max.toFixed(2)};
 }
 /** How much nearby walls shade the ground here (0 open, 1 under a building). */
 float ceContact(vec2 p) {
@@ -250,9 +243,10 @@ else if (ceN.y > -0.5) { vec3 ceC = diffuseColor.rgb; ceWindowGrid(ceN, ceC, ceG
   });
 }
 
-/** Load the lamp list into the shared uniforms once. */
+/** Paint the standing streetlights' pools into the shared map: at load, and again after a lamp is knocked over. */
 export function installLamps(): void {
-  const lamps = lampList();
-  lamps.forEach((l, i) => surfaceUniforms.uLamps.value[i].copy(l));
-  surfaceUniforms.uLampCount.value = lamps.length;
+  const map = lampPoolMap(lampList());
+  const data = lampPoolTexture.image.data as Uint8Array;
+  for (let k = 0; k < map.length; k++) data[k] = Math.round((map[k] / LAMP_POOL.max) * 255);
+  lampPoolTexture.needsUpdate = true;
 }

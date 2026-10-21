@@ -94,3 +94,35 @@ export function landmarkFootprints(): Footprint[] {
     ),
   ];
 }
+
+/**
+ * Streetlight pools, painted once into a map over the same ground area rather than summed per pixel in the shader:
+ * every ground pixel then reads one texel instead of looping over every lamp. Size in pixels, and the brightest a
+ * spot under overlapping pools gets.
+ */
+export const LAMP_POOL = { size: 512, max: 1.4 } as const;
+/** Squared radius (m²) beyond which a pool adds nothing, and the falloff scale of exp(-d² / FALLOFF). */
+const POOL_REACH2 = 140;
+const POOL_FALLOFF = 26;
+
+/** 0..LAMP_POOL.max pool strength per pixel for lamp heads at `heads` (x, and z as y), rows along +Z. */
+export function lampPoolMap(heads: ReadonlyArray<{ x: number; y: number }>, size: number = LAMP_POOL.size, half: number = MASK.half): Float32Array {
+  const px = (2 * half) / size;
+  const grid = new Float32Array(size * size);
+  const reach = Math.sqrt(POOL_REACH2);
+  for (const { x, y: z } of heads) {
+    const c0 = Math.max(0, Math.floor((x - reach + half) / px));
+    const c1 = Math.min(size - 1, Math.ceil((x + reach + half) / px));
+    const r0 = Math.max(0, Math.floor((z - reach + half) / px));
+    const r1 = Math.min(size - 1, Math.ceil((z + reach + half) / px));
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const dx = (c + 0.5) * px - half - x;
+        const dz = (r + 0.5) * px - half - z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < POOL_REACH2) grid[r * size + c] = Math.min(LAMP_POOL.max, grid[r * size + c] + Math.exp(-d2 / POOL_FALLOFF));
+      }
+    }
+  }
+  return grid;
+}

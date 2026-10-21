@@ -1,5 +1,5 @@
 import { PROJECTS_HALL, TOWER } from '../district/layout';
-import { footprintMask, landmarkFootprints, MASK, maskAt } from './groundMask';
+import { footprintMask, LAMP_POOL, lampPoolMap, landmarkFootprints, MASK, maskAt } from './groundMask';
 
 describe('ground contact mask', () => {
   const building = { x: 0, z: 0, hx: 6, hz: 4, rotationY: 0 };
@@ -36,5 +36,26 @@ describe('ground contact mask', () => {
 
   it('spans the whole world', () => {
     expect(MASK.half).toBeGreaterThanOrEqual(105);
+  });
+});
+
+describe('streetlight pools painted on the ground', () => {
+  const at = (map: Float32Array, x: number, z: number) => maskAt(map, x, z, LAMP_POOL.size, MASK.half);
+
+  it('is brightest under a lamp head and fades out within about 12 m', () => {
+    const map = lampPoolMap([{ x: 10, y: -20 }]);
+    expect(at(map, 10, -20)).toBeGreaterThan(0.95);
+    expect(at(map, 15, -20)).toBeCloseTo(Math.exp(-25 / 26), 1);
+    expect(at(map, 10, -8)).toBeLessThan(0.01);
+  });
+
+  it('adds up where two pools meet, up to a cap', () => {
+    const map = lampPoolMap([{ x: 0, y: 0 }, { x: 0.5, y: 0 }]);
+    expect(at(map, 0.25, 0)).toBeLessThanOrEqual(LAMP_POOL.max + 1e-6);
+    expect(at(map, 0.25, 0)).toBeGreaterThan(1.2);
+  });
+
+  it('is dark everywhere with no lamps', () => {
+    expect(lampPoolMap([]).every((v) => v === 0)).toBe(true);
   });
 });

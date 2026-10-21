@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { LAMPS, ROADS } from '../district/layout';
 import { makeDissolvable } from '../scene/dissolve';
 import { knock, lampId } from '../scene/breakables';
-import { installLamps, lampList, LAMP_CAP, patchSurface, patchWall, surfaceKind, surfaceUniforms } from './surfaceShaders';
+import { LAMP_POOL, MASK, maskAt } from './groundMask';
+import { installLamps, lampList, patchSurface, patchWall, surfaceKind, surfaceUniforms } from './surfaceShaders';
 
 function compile(material: THREE.Material) {
   const shader = {
@@ -73,21 +74,20 @@ describe('surface shaders by material name', () => {
     expect(compile(b).shader.uniforms.uTop.value).toBe(60);
   });
 
-  it('lists every streetlight for the lamp pools, within the shader cap', () => {
-    const lamps = lampList();
-    expect(lamps.length).toBe(LAMPS.length);
-    expect(lamps.length).toBeLessThanOrEqual(LAMP_CAP);
+  it('lists every streetlight for the lamp pools', () => {
+    expect(lampList().length).toBe(LAMPS.length);
   });
 
   it('drops a knocked-over lamp’s pool, once the lamps are installed again', () => {
     installLamps();
-    const count = surfaceUniforms.uLampCount.value;
     const head = lampList()[3].clone();
+    const poolAt = () => maskAt(surfaceUniforms.uLampPool.value.image.data as unknown as Float32Array, head.x, head.y, LAMP_POOL.size, MASK.half) / 255;
+    expect(poolAt()).toBeGreaterThan(0.5);
     knock(lampId(3));
     const lamps = lampList();
     expect(lamps.length).toBe(LAMPS.length - 1);
     expect(lamps.some((l) => l.distanceTo(head) < 1e-6)).toBe(false);
     installLamps();
-    expect(surfaceUniforms.uLampCount.value).toBe(count - 1);
+    expect(poolAt()).toBeLessThan(0.1);
   });
 });
