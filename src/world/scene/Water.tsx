@@ -103,6 +103,14 @@ export function Water() {
     [],
   );
 
+  // Built here rather than as a <shaderMaterial> element: the element copies scalar uniform values into its own
+  // uniforms, so the time, night level and reflection written below would never reach the surface.
+  const surfaceMaterial = useMemo(
+    () => new THREE.ShaderMaterial({ vertexShader: waterVertex, fragmentShader: waterFragment, uniforms, transparent: true, depthWrite: false }),
+    [uniforms],
+  );
+  useEffect(() => () => surfaceMaterial.dispose(), [surfaceMaterial]);
+
   // The reflection snapshot: a small cube camera at the pond's centre, just above the surface.
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -308,7 +316,7 @@ export function Water() {
     <group>
       <mesh ref={surface} position={[POND.center[0], SURFACE_Y, POND.center[1]]} rotation={[-Math.PI / 2, 0, 0]} scale={[POND.radiusX, POND.radiusZ, 1]} renderOrder={1}>
         <circleGeometry args={[1, 96]} />
-        <shaderMaterial vertexShader={waterVertex} fragmentShader={waterFragment} uniforms={uniforms} transparent depthWrite={false} />
+        <primitive object={surfaceMaterial} attach="material" />
       </mesh>
       <points geometry={dropGeometry} material={dropMaterial} frustumCulled={false} />
       <instancedMesh ref={tracks} args={[undefined, undefined, TRACKS]} frustumCulled={false} renderOrder={2} visible={false}>

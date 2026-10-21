@@ -84,6 +84,13 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
     [],
   );
   const scratch = useMemo(() => ({ color: new THREE.Color(), focus: new THREE.Vector3() }), []);
+  // Built here rather than as a <shaderMaterial> element, which copies scalar uniform values into its own uniforms:
+  // the night level written each frame would never reach the dome, and its stars would never come out.
+  const skyMaterial = useMemo(
+    () => new THREE.ShaderMaterial({ uniforms, vertexShader: skyVertex, fragmentShader: skyFragment, side: THREE.BackSide, depthWrite: false, fog: false }),
+    [uniforms],
+  );
+  useEffect(() => () => skyMaterial.dispose(), [skyMaterial]);
 
   // Reflections come from the time-of-day sky itself (KTD8): a small scene holding the same sky, captured into
   // an environment map and refreshed when the hour moves on, so glass and paint reflect the hour.
@@ -164,7 +171,7 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
     <>
       <mesh ref={sky} renderOrder={-1} frustumCulled={false}>
         <sphereGeometry args={[1500, 32, 16]} />
-        <shaderMaterial uniforms={uniforms} vertexShader={skyVertex} fragmentShader={skyFragment} side={THREE.BackSide} depthWrite={false} fog={false} />
+        <primitive object={skyMaterial} attach="material" />
       </mesh>
       <hemisphereLight ref={hemisphere} args={['#bcd6ff', '#6a5c48', 0.9]} />
       <directionalLight
