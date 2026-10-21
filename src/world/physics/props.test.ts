@@ -37,7 +37,7 @@ function hitWall(kmh: number): number {
   chassis.setLinvel({ x: 0, y: 0, z: -kmh / 3.6 }, true);
   // Hold speed with throttle until contact, then let the collision play out.
   for (let t = 0; t < 4; t += STEP) {
-    drive = applyDrive(vehicle, { throttle: chassis.translation().z > 32 ? 1 : 0, steer: 0, handbrake: false }, drive, STEP);
+    drive = applyDrive(vehicle, { throttle: chassis.translation().z > 32 ? 1 : 0, steer: 0, handbrake: false, boost: false }, drive, STEP);
     if (chassis.translation().z > 32) {
       const v = chassis.linvel();
       chassis.setLinvel({ x: v.x, y: v.y, z: -kmh / 3.6 }, true);
@@ -103,7 +103,7 @@ describe('footballs', () => {
     for (let t = 0; t < 3; t += STEP) {
       // Hold about 30 km/h until the car reaches the ball, then coast.
       const before = chassis.translation().z > -6;
-      drive = applyDrive(vehicle, { throttle: before && -chassis.linvel().z < 30 / 3.6 ? 1 : 0, steer: 0, handbrake: false }, drive, STEP);
+      drive = applyDrive(vehicle, { throttle: before && -chassis.linvel().z < 30 / 3.6 ? 1 : 0, steer: 0, handbrake: false, boost: false }, drive, STEP);
       vehicle.updateVehicle(STEP, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS);
       world.step();
     }

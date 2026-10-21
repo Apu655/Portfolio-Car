@@ -1,6 +1,7 @@
 // Headless handling tests on the real Rapier engine (the same build the site ships).
 import RAPIER from '@dimforge/rapier3d-compat';
 import type { DriveInput } from '../drive/input';
+import { BOOST } from './boost';
 import {
   CAR_TUNING,
   FlipWatch,
@@ -28,19 +29,19 @@ function scene(heading = 0, extra?: (world: RAPIER.World) => void) {
   const chassis = createChassis(world, RAPIER, [0, 0, 0], heading);
   const vehicle = createVehicle(world, chassis);
   let state: DriveState = { steer: 0 };
-  const run = (input: DriveInput, seconds: number) => {
+  const run = (input: DriveInput, seconds: number, boosting = false) => {
     for (let t = 0; t < seconds - 1e-9; t += STEP) {
-      state = applyDrive(vehicle, input, state, STEP);
+      state = applyDrive(vehicle, input, state, STEP, boosting);
       vehicle.updateVehicle(STEP, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS);
       world.step();
     }
   };
-  run({ throttle: 0, steer: 0, handbrake: false }, 1); // settle on the suspension
+  run({ throttle: 0, steer: 0, handbrake: false, boost: false }, 1); // settle on the suspension
   return { world, chassis, vehicle, run };
 }
 
-const gas: DriveInput = { throttle: 1, steer: 0, handbrake: false };
-const idle: DriveInput = { throttle: 0, steer: 0, handbrake: false };
+const gas: DriveInput = { throttle: 1, steer: 0, handbrake: false, boost: false };
+const idle: DriveInput = { throttle: 0, steer: 0, handbrake: false, boost: false };
 
 describe('raycast vehicle handling', () => {
   it('rests on all four wheels after spawning', () => {
@@ -61,13 +62,28 @@ describe('raycast vehicle handling', () => {
     expect(chassis.translation().z).toBeLessThan(-20);
   });
 
+  it('boost pulls harder and tops out about a third faster', () => {
+    const plain = scene();
+    plain.run(gas, 12);
+    const top = forwardSpeed(plain.vehicle);
+    expect(top).toBeLessThan(CAR_TUNING.maxSpeed + 0.5);
+    const boosted = scene();
+    boosted.run(gas, 3, true);
+    const plainAt3 = scene();
+    plainAt3.run(gas, 3);
+    expect(forwardSpeed(boosted.vehicle)).toBeGreaterThan(forwardSpeed(plainAt3.vehicle) + 2);
+    boosted.run(gas, 12, true);
+    expect(forwardSpeed(boosted.vehicle)).toBeGreaterThan(CAR_TUNING.maxSpeed * 1.2);
+    expect(forwardSpeed(boosted.vehicle)).toBeLessThan(CAR_TUNING.maxSpeed * BOOST.topSpeed + 0.5);
+  });
+
   it('S brakes to a stop first, then reverses', () => {
     const { vehicle, run } = scene();
     run(gas, 3);
     const moving = forwardSpeed(vehicle);
-    run({ throttle: -1, steer: 0, handbrake: false }, 0.5);
+    run({ throttle: -1, steer: 0, handbrake: false, boost: false }, 0.5);
     expect(forwardSpeed(vehicle)).toBeLessThan(moving - 3);
-    run({ throttle: -1, steer: 0, handbrake: false }, 5);
+    run({ throttle: -1, steer: 0, handbrake: false, boost: false }, 5);
     expect(forwardSpeed(vehicle)).toBeLessThan(-1);
     expect(forwardSpeed(vehicle)).toBeGreaterThan(-CAR_TUNING.reverseMaxSpeed - 1);
   });
@@ -84,10 +100,10 @@ describe('raycast vehicle handling', () => {
   it('equal left and right steering produce mirrored turns', () => {
     const left = scene();
     left.run(gas, 2);
-    left.run({ throttle: 1, steer: 1, handbrake: false }, 1.5);
+    left.run({ throttle: 1, steer: 1, handbrake: false, boost: false }, 1.5);
     const right = scene();
     right.run(gas, 2);
-    right.run({ throttle: 1, steer: -1, handbrake: false }, 1.5);
+    right.run({ throttle: 1, steer: -1, handbrake: false, boost: false }, 1.5);
     const hl = headingOf(left.chassis);
     const hr = headingOf(right.chassis);
     expect(hl).toBeGreaterThan(0.3); // positive steer turns left

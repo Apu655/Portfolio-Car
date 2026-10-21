@@ -9,7 +9,7 @@ beforeAll(async () => {
 });
 
 const STEP = 1 / 60;
-const idle = { throttle: 0, steer: 0, handbrake: false };
+const idle = { throttle: 0, steer: 0, handbrake: false, boost: false };
 
 /** Car on flat ground heading east toward the pond's west shore at `speed` m/s, `gap` meters out. */
 function approach(speed: number, gap = 8, throttle = 0) {

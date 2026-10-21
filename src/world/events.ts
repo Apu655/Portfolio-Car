@@ -56,6 +56,10 @@ export interface Telemetry {
   heading: number;
   /** Where the left and right rear tires touch the surface, or null while that wheel is in the air. */
   rearContacts: [Vec3 | null, Vec3 | null];
+  /** Nitro tank 0..1, whether it is firing, and whether it ran dry and is still refilling to the re-arm level. */
+  boost: number;
+  boosting: boolean;
+  boostLocked: boolean;
 }
 
 export const telemetry: Telemetry = {
@@ -71,4 +75,7 @@ export const telemetry: Telemetry = {
   position: [0, 0, 0],
   heading: 0,
   rearContacts: [null, null],
+  boost: 1,
+  boosting: false,
+  boostLocked: false,
 };

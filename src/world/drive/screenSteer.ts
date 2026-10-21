@@ -15,7 +15,7 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
  * `stick` is screen space: x right, y up, each in -1..1. `carHeading` uses the layout convention (0 = north,
  * positive turns left). The car always drives forward; pointing behind it turns it around at full lock.
  */
-export function stickToDrive(stick: { x: number; y: number }, carHeading: number, viewHeading: number = VIEW.heading): DriveInput {
+export function stickToDrive(stick: { x: number; y: number }, carHeading: number, viewHeading: number = VIEW.heading): Omit<DriveInput, 'boost'> {
   const push = Math.min(1, Math.hypot(stick.x, stick.y));
   if (push < STICK_DEADZONE) return { throttle: 0, steer: 0, handbrake: false };
   // Screen up is the view heading; screen right is a right turn from it.

@@ -3,6 +3,7 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { MathUtils } from 'three';
 import type { DriveInput } from '../drive/input';
+import { BOOST } from './boost';
 
 type Rapier = typeof RAPIER;
 type World = RAPIER.World;
@@ -119,11 +120,14 @@ export function forwardSpeed(vehicle: Controller): number {
 }
 
 /**
- * Translate player input into engine force, brakes, and steering for one physics step.
+ * Translate player input into engine force, brakes, and steering for one physics step. While `boosting`, the
+ * engine pulls harder and tops out higher (KTD5 of the knock-overs and boost plan).
  * S brakes while moving forward, then reverses; W does the mirror when rolling backward.
  */
-export function applyDrive(vehicle: Controller, input: DriveInput, state: DriveState, dt: number): DriveState {
+export function applyDrive(vehicle: Controller, input: DriveInput, state: DriveState, dt: number, boosting = false): DriveState {
   const t = CAR_TUNING;
+  const force = boosting ? t.engineForce * BOOST.force : t.engineForce;
+  const topSpeed = boosting ? t.maxSpeed * BOOST.topSpeed : t.maxSpeed;
   const speed = forwardSpeed(vehicle);
   // Ease the pedal so a key press builds power over a moment instead of jolting the car.
   const previous = state.throttle ?? 0;
@@ -135,7 +139,7 @@ export function applyDrive(vehicle: Controller, input: DriveInput, state: DriveS
   if (input.throttle > 0) {
     if (speed < -0.5) brake = t.brakeForce * input.throttle;
     // Full force through the middle of the range, easing off only near top speed.
-    else engine = -t.engineForce * input.throttle * Math.max(0, 1 - Math.pow(Math.max(0, speed) / t.maxSpeed, 3));
+    else engine = -force * input.throttle * Math.max(0, 1 - Math.pow(Math.max(0, speed) / topSpeed, 3));
   } else if (input.throttle < 0) {
     if (speed > 0.5) brake = t.brakeForce * -input.throttle;
     else engine = t.reverseForce * -input.throttle * Math.max(0, 1 + speed / t.reverseMaxSpeed);

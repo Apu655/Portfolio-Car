@@ -5,6 +5,8 @@ export interface DriveInput {
   throttle: number;
   steer: number;
   handbrake: boolean;
+  /** Nitro boost requested (the tank decides whether it fires). */
+  boost: boolean;
 }
 
 export const KEY_BINDINGS = {
@@ -13,6 +15,7 @@ export const KEY_BINDINGS = {
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
   handbrake: ['Space'],
+  boost: ['ShiftLeft', 'ShiftRight'],
   recover: ['KeyR'],
 } as const;
 
@@ -27,6 +30,7 @@ export function readKeyboardInput(pressed: ReadonlySet<string>): DriveInput {
     throttle: axis(KEY_BINDINGS.forward, KEY_BINDINGS.back),
     steer: axis(KEY_BINDINGS.left, KEY_BINDINGS.right),
     handbrake: any(pressed, KEY_BINDINGS.handbrake),
+    boost: any(pressed, KEY_BINDINGS.boost),
   };
 }
 
@@ -36,7 +40,7 @@ export function wantsRecover(pressed: ReadonlySet<string>): boolean {
 }
 
 /** Written by the on-screen buttons on touch devices; read by the car each frame. */
-export const touchInput: DriveInput = { throttle: 0, steer: 0, handbrake: false };
+export const touchInput: DriveInput = { throttle: 0, steer: 0, handbrake: false, boost: false };
 
 /** The on-screen joystick in screen space (x right, y up, each -1..1); the car maps it with `stickToDrive`. */
 export const touchStick = { x: 0, y: 0 };
@@ -44,10 +48,13 @@ export const touchStick = { x: 0, y: 0 };
 /** One-shot touch actions (the Recover button). */
 export const touchActions = { recover: false };
 
-/** Keyboard wins when any key is held; otherwise the touch controls drive. */
+/**
+ * Keyboard wins when any driving key is held; otherwise the touch controls drive. Shift alone doesn't count as
+ * driving, so it boosts whichever input is active.
+ */
 export function combineInputs(keyboard: DriveInput, touch: DriveInput): DriveInput {
   const keyboardActive = keyboard.throttle !== 0 || keyboard.steer !== 0 || keyboard.handbrake;
-  return keyboardActive ? keyboard : { ...touch };
+  return keyboardActive ? keyboard : { ...touch, boost: touch.boost || keyboard.boost };
 }
 
 /**

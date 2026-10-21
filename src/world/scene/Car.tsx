@@ -9,6 +9,7 @@ import { combineInputs, readKeyboardInput, touchActions, touchInput, touchStick,
 import { stickToDrive } from '../drive/screenSteer';
 import { emit, telemetry } from '../events';
 import { lightingState } from '../lighting/state';
+import { FULL_TANK, tickBoost } from '../physics/boost';
 import { WaterContact } from '../physics/water';
 import {
   applyDrive,
@@ -28,7 +29,7 @@ import { MODEL_URLS, enableShadows, useModel } from './District';
 /** The car model's origin is on the ground; the chassis origin rides this far above it at rest. */
 const VISUAL_OFFSET_Y = -0.7;
 
-const NO_INPUT = { throttle: 0, steer: 0, handbrake: false };
+const NO_INPUT = { throttle: 0, steer: 0, handbrake: false, boost: false };
 
 function destinationFor(section: string | undefined): { position: [number, number]; heading: number } | null {
   if (!section) return null;
@@ -45,6 +46,7 @@ export function Car() {
   const visual = useRef<THREE.Group>(null);
   const vehicle = useRef<ReturnType<typeof createVehicle> | null>(null);
   const drive = useRef<DriveState>({ steer: 0 });
+  const boost = useRef(FULL_TANK);
   const keys = useDriveKeys();
   const flip = useMemo(() => new FlipWatch(2), []);
   const throttleArmed = useRef(true);
@@ -104,7 +106,7 @@ export function Car() {
     const dt = w.timestep;
     const state = usePortfolio.getState();
     const heading = headingOf(chassis);
-    const touch = { ...stickToDrive(touchStick, heading), handbrake: touchInput.handbrake };
+    const touch = { ...stickToDrive(touchStick, heading), handbrake: touchInput.handbrake, boost: touchInput.boost };
     let input = combineInputs(readKeyboardInput(keys.current), touch);
     const anyInput = input.throttle !== 0 || input.steer !== 0 || input.handbrake;
     if (state.revealing) inputArmed.current = false;
@@ -119,7 +121,9 @@ export function Car() {
     } else if (input.throttle === 0) {
       throttleArmed.current = true;
     }
-    drive.current = applyDrive(v, input, drive.current, dt);
+    // The nitro boost fires only while driving forward (R11); Shift alone, or with S, does nothing.
+    boost.current = tickBoost(boost.current, dt, input.boost && input.throttle > 0 && forwardSpeed(v) > -0.5);
+    drive.current = applyDrive(v, input, drive.current, dt, boost.current.active);
 
     const wet = water.update(chassis, v, dt);
     v.updateVehicle(dt, rapier.QueryFilterFlags.EXCLUDE_SENSORS);
@@ -152,6 +156,9 @@ export function Car() {
     telemetry.wheelsOnGround = onGround;
     telemetry.position = [p.x, p.y, p.z];
     telemetry.heading = heading;
+    telemetry.boost = boost.current.level;
+    telemetry.boosting = boost.current.active;
+    telemetry.boostLocked = boost.current.locked;
     for (const [slot, wheel] of [[0, 2], [1, 3]] as const) {
       const contact = v.wheelIsInContact(wheel) ? v.wheelContactPoint(wheel) : null;
       telemetry.rearContacts[slot] = contact ? [contact.x, contact.y, contact.z] : null;
