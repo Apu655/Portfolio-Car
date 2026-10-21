@@ -1,6 +1,8 @@
 // Headed frame-rate run (R18, Verification Contract): a one-minute drive around the road loop in real Chrome on the
-// real GPU, at 1440×900 with a device scale factor of 2 (retina). Reports the average and 5th-percentile fps and
-// whether the quality tier dropped. It reports; it never fails the build, so the exit code is always 0.
+// real GPU, at 1440×900 with a device scale factor of 2 (retina). It holds the nitro boost on the straights, and
+// three times aims the car at the nearest lamp post or tree so thrown copies are in flight while frames are sampled
+// (R17 of the knock-overs and boost plan). Reports the average and 5th-percentile fps and whether the quality tier
+// dropped. It reports; it never fails the build, so the exit code is always 0.
 //
 // Usage: `npm run build`, then `node scripts/measure-fps.mjs`. The script serves `dist/` itself with
 // `vite preview --port 4175 --strictPort` (and stops it afterwards), or reuses a preview already on that port.
@@ -13,6 +15,8 @@ const ORIGIN = `http://localhost:${PORT}`;
 const SETTLE_MS = 3000; // after "Start driving", before sampling: first-frame shader compiles and the camera settle
 const DRIVE_MS = 60_000;
 const TICK_MS = 50;
+/** Seconds into the drive when the car is aimed at the nearest standing lamp post or tree. */
+const KNOCK_AT = [12, 27, 42];
 
 // The road loop (src/world/district/layout.ts ROADS): a rounded rectangle, driven anticlockwise on the map (south side
 // eastbound first, as the section tour runs) along its centre line, which runs midway between each gate's pillars. The
@@ -120,7 +124,7 @@ async function main() {
     // Drive: hold W, steer toward a point a little ahead on the road, brake for corners, and put the car back on the
     // road if it gets stuck against something.
     await page.keyboard.down('KeyW');
-    const held = { KeyA: false, KeyD: false, KeyW: true, KeyS: false };
+    const held = { KeyA: false, KeyD: false, KeyW: true, KeyS: false, ShiftLeft: false };
     const at = (i) => ROUTE[i % ROUTE.length];
     const hold = async (key, down) => {
       if (held[key] === down) return;
@@ -129,8 +133,27 @@ async function main() {
     };
     let stuckMs = 0;
     const recoveries = [];
-    const end = Date.now() + DRIVE_MS;
+    const start = Date.now();
+    const end = start + DRIVE_MS;
+    const knocks = [...KNOCK_AT];
     while (Date.now() < end) {
+      if (knocks.length && Date.now() - start > knocks[0] * 1000) {
+        knocks.shift();
+        // Put the car 8 m short of the nearest standing lamp or tree, facing it; the drive below takes it through.
+        await page.evaluate(() => {
+          const d = window.__district;
+          const [x, , z] = d.telemetry.position;
+          const target = d.breakables().filter((b) => !b.knocked).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
+          if (!target) return;
+          const away = Math.atan2(x - target.x, z - target.z);
+          const from = [target.x + Math.sin(away) * 8, target.z + Math.cos(away) * 8];
+          d.place(from[0], from[1], Math.atan2(from[0] - target.x, from[1] - target.z));
+        });
+        for (const key of ['KeyA', 'KeyD', 'KeyS']) await hold(key, false);
+        await hold('KeyW', true);
+        await page.waitForTimeout(1500);
+        continue;
+      }
       const { position, heading, speed } = await page.evaluate(() => {
         const t = window.__district.telemetry;
         return { position: t.position, heading: t.heading, speed: t.speed };
@@ -144,6 +167,7 @@ async function main() {
       await hold('KeyD', error < -0.06);
       await hold('KeyW', speed < limit);
       await hold('KeyS', speed > limit + 2);
+      await hold('ShiftLeft', limit === Infinity && speed > 5);
       stuckMs = Math.abs(speed) < 0.5 ? stuckMs + TICK_MS : 0;
       if (stuckMs > 2500) {
         const on = at(i + 8); // a few metres on, past whatever stopped it
@@ -172,6 +196,7 @@ async function main() {
     console.log(`pixel ratio:       ${run.dpr.join(' -> ')}`);
     console.log(`shadows:           ${run.shadows.join(' -> ')}`);
     console.log(`tier dropped:      ${dropped ? 'yes' : 'no'}`);
+    console.log(`knocked over:      ${await page.evaluate(() => window.__district.events.filter((e) => e === 'knock').length)}`);
     if (recoveries.length) console.log(`stuck, put back:   ${recoveries.join(' ')}`);
   } finally {
     await browser.close();

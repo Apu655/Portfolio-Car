@@ -279,6 +279,60 @@ test('the car can knock the tech footballs around', async ({ page }) => {
   expect(errors.map((e) => e.text())).toEqual([]);
 });
 
+test('driving into a lamp post knocks it over without stopping the car, and it stays down (AE1, AE2)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  const lamp = (await page.evaluate(() => window.__district!.breakables())).find((b) => b.kind === 'lamp' && Math.hypot(b.x + 20, b.z - 61.2) < 0.1)!;
+  await place(page, lamp.x - 9, lamp.z, -Math.PI / 2); // on the south sidewalk, facing east at the lamp
+
+  await page.keyboard.down('KeyW');
+  await expect.poll(() => events(page), { timeout: 10_000 }).toContain('knock');
+  await page.waitForTimeout(300);
+  await page.keyboard.up('KeyW');
+  const after = await page.evaluate(() => window.__district!.telemetry);
+  expect(after.speed).toBeGreaterThan(3); // it drove on through
+  expect(after.position[0]).toBeGreaterThan(lamp.x);
+  const down = () => page.evaluate(([x, z]) => window.__district!.breakables().find((b) => b.x === x && b.z === z)!.knocked, [lamp.x, lamp.z] as const);
+  expect(await down()).toBe(true);
+
+  // Leaving for the quick view and coming back keeps it down.
+  await page.getByRole('button', { name: 'Quick view' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Apu Islam' })).toBeVisible();
+  await page.getByRole('button', { name: /Drive the city/ }).first().click();
+  await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
+  expect(await down()).toBe(true);
+
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('bumping the robot shoves it aside, and it walks back to its spot (AE3)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await startDriving(page);
+  const robotAt = () =>
+    page.evaluate(() => {
+      const robot = window.__district!.r3f.scene.getObjectByName('robot')!;
+      const e = robot.matrixWorld.elements;
+      return [e[12], e[14]];
+    });
+  const home = await robotAt();
+  await place(page, home[0], home[1] + 24, NORTH); // up the east road, driving at it
+
+  await page.keyboard.down('KeyW');
+  await expect.poll(() => events(page), { timeout: 10_000 }).toContain('robotHit');
+  await page.keyboard.up('KeyW');
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(600);
+  await page.keyboard.up('Space');
+  const shoved = await robotAt();
+  expect(Math.hypot(shoved[0] - home[0], shoved[1] - home[1])).toBeGreaterThan(1);
+  await expect(page.locator('.robot-bubble__hello')).not.toHaveText("Hi! I'm the SeCAREly assistant.");
+
+  await place(page, 40, 57.5, -Math.PI / 2); // out of its way
+  await expect.poll(async () => { const at = await robotAt(); return Math.hypot(at[0] - home[0], at[1] - home[1]); }, { timeout: 8_000 }).toBeLessThan(0.05);
+
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
 test('fast travel and the conventional portfolio keep your place', async ({ page }) => {
   await startDriving(page);
   await page.getByRole('button', { name: 'Menu' }).click();
