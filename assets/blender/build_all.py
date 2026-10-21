@@ -17,7 +17,7 @@ sys.path.insert(0, HERE)
 
 from lib import kit  # noqa: E402
 
-MODELS = ["car", "career_tower", "district", "props", "kiosks", "billboard", "buildings", "landmarks"]
+MODELS = ["car", "career_tower", "district", "props", "kiosks", "billboard", "landmarks"]
 
 
 def main():

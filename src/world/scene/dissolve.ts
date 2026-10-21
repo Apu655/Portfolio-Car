@@ -36,7 +36,7 @@ function patch(material: THREE.Material, fade: { value: number }): void {
 
 /**
  * Make every mesh under `root` dissolvable through one shared fade value. With `cloneMaterials`, each mesh gets
- * its own material copies first: use it where several objects share materials (backdrop building clones, the
+ * its own material copies first: use it where several objects share materials (city buildings, the
  * kiosks), so fading one leaves the others solid. Without it, materials are patched in place: use it for
  * single-instance objects whose materials other code already holds (the billboard's per-letter materials).
  */
