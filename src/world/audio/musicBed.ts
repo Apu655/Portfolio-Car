@@ -1,131 +1,97 @@
-// A soft ambient score generated in the browser (R14): slow pad chords with sparse pentatonic notes floating over
-// them, through a gentle delay and reverb. Copyright-free by construction and nothing to download. It never
-// repeats exactly: the chord cycle is fixed, but the melody notes and their timing are chosen afresh each time.
-
-/** Seconds each chord holds. */
-export const CHORD_SECONDS = 9.6;
+// The background score (R15): the route theme from routeTheme.ts, generated in the browser so there is nothing
+// to download. A soft square lead, a triangle walking bass and a thin pulse arpeggio play it through a gentle
+// low-pass, a dotted-eighth echo and a small reverb. A lookahead scheduler queues one bar at a time on the
+// audio clock, so the 32-bar loop wraps without a gap. Night softens the voices and slows the arpeggio.
+import { BAR_SECONDS, barEvents, BEAT_SECONDS, nextBar, type Voice, voiceLevels } from './routeTheme';
 
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-/** A calm cycle in C major: Cmaj9, Am9, Fmaj7, G6sus (MIDI notes, low to high). */
-export const CHORDS: number[][] = [
-  [48, 55, 64, 71, 74],
-  [45, 52, 60, 67, 71],
-  [41, 53, 57, 64, 72],
-  [43, 50, 59, 64, 69],
-];
-
-/** The C major pentatonic notes the melody picks from (one octave above the pads). */
-export const MELODY_NOTES = [72, 74, 76, 79, 81, 84];
-
-/** Seconds until the next melody note: sparse by day, sparser at night. */
-export function nextNoteDelay(random: number, night: number): number {
-  return (1.8 + random * 3.2) * (1 + night * 0.6);
-}
-
+/** Seconds before a bar is due that it gets scheduled; larger than any frame gap. */
 const LOOKAHEAD = 0.5;
+
+/** A 25% pulse wave: thinner and softer than a square, the classic chiptune arpeggio colour. */
+function pulseWave(ctx: AudioContext, duty: number): PeriodicWave {
+  const harmonics = 24;
+  const real = new Float32Array(harmonics);
+  const imag = new Float32Array(harmonics);
+  for (let n = 1; n < harmonics; n++) real[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+  return ctx.createPeriodicWave(real, imag);
+}
 
 export class MusicBed {
   private readonly ctx: AudioContext;
   private readonly filter: BiquadFilterNode;
   private readonly dry: GainNode;
   private readonly send: GainNode;
-  private nextChordAt: number;
-  private chord = 0;
-  private nextNoteAt: number;
+  private readonly pulse: PeriodicWave;
+  private nextBarAt: number;
+  private bar = 0;
 
   constructor(ctx: AudioContext, out: AudioNode) {
     this.ctx = ctx;
     this.filter = ctx.createBiquadFilter();
     this.filter.type = 'lowpass';
-    this.filter.frequency.value = 1400;
+    this.filter.frequency.value = 2600;
     this.filter.Q.value = 0.4;
     this.dry = ctx.createGain();
-    this.dry.gain.value = 0.7;
+    this.dry.gain.value = 0.8;
     this.filter.connect(this.dry).connect(out);
 
-    // Space: a feedback delay and a short synthetic reverb, both fed from one send.
+    // Space: a dotted-eighth feedback echo and a short synthetic reverb, both fed from one send.
     this.send = ctx.createGain();
-    this.send.gain.value = 0.45;
+    this.send.gain.value = 0.3;
     this.filter.connect(this.send);
     const delay = ctx.createDelay(2);
-    delay.delayTime.value = 0.42;
+    delay.delayTime.value = BEAT_SECONDS * 0.75;
     const feedback = ctx.createGain();
-    feedback.gain.value = 0.32;
+    feedback.gain.value = 0.25;
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 2200;
+    tone.frequency.value = 2000;
     this.send.connect(delay).connect(tone).connect(feedback).connect(delay);
     tone.connect(out);
     const reverb = ctx.createConvolver();
-    reverb.buffer = impulse(ctx, 3.2);
+    reverb.buffer = impulse(ctx, 2.4);
     const wet = ctx.createGain();
-    wet.gain.value = 0.55;
+    wet.gain.value = 0.35;
     this.send.connect(reverb).connect(wet).connect(out);
 
-    const now = ctx.currentTime;
-    this.nextChordAt = now + 0.1;
-    this.nextNoteAt = now + 3;
+    this.pulse = pulseWave(ctx, 0.25);
+    this.nextBarAt = ctx.currentTime + 0.1;
   }
 
-  /** Schedule what is due soon; `night` (0..1) darkens and slows the music. */
+  /** Schedule the next bar when it is due soon; `night` (0..1) softens the voices and slows the arpeggio. */
   update(night: number): void {
     const now = this.ctx.currentTime;
-    this.filter.frequency.setTargetAtTime(1400 - night * 600, now, 2);
-    if (this.nextChordAt < now + LOOKAHEAD) {
-      const at = Math.max(now, this.nextChordAt);
-      this.pad(CHORDS[this.chord], at);
-      this.chord = (this.chord + 1) % CHORDS.length;
-      this.nextChordAt = at + CHORD_SECONDS;
-    }
-    if (this.nextNoteAt < now + LOOKAHEAD) {
-      const at = Math.max(now, this.nextNoteAt);
-      this.pluck(MELODY_NOTES[Math.floor(Math.random() * MELODY_NOTES.length)], at, 1 - night * 0.4);
-      this.nextNoteAt = at + nextNoteDelay(Math.random(), night);
-    }
+    this.filter.frequency.setTargetAtTime(2600 - night * 1000, now, 2);
+    if (this.nextBarAt >= now + LOOKAHEAD) return;
+    // After a long stall (a hidden tab) start the bar now rather than in the past.
+    const at = Math.max(now, this.nextBarAt);
+    const levels = voiceLevels(night);
+    for (const e of barEvents(this.bar, night))
+      this.note(e.voice, e.midi, at + e.start * BEAT_SECONDS, e.beats * BEAT_SECONDS, levels[e.voice]);
+    this.bar = nextBar(this.bar);
+    this.nextBarAt = at + BAR_SECONDS;
   }
 
-  /** A chord that swells in over a few seconds and fades as the next one arrives. */
-  private pad(notes: number[], when: number): void {
-    const hold = CHORD_SECONDS + 3;
-    notes.forEach((note, i) => {
-      for (const [type, detune] of [['triangle', -6], ['sine', 5]] as const) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = type;
-        osc.frequency.value = midiHz(note);
-        osc.detune.value = detune;
-        const peak = (i === 0 ? 0.05 : 0.032) * (type === 'sine' ? 0.8 : 1);
-        gain.gain.setValueAtTime(0, when);
-        gain.gain.linearRampToValueAtTime(peak, when + 3.5);
-        gain.gain.setValueAtTime(peak, when + CHORD_SECONDS - 0.5);
-        gain.gain.linearRampToValueAtTime(0, when + hold);
-        osc.connect(gain).connect(this.filter);
-        osc.start(when);
-        osc.stop(when + hold + 0.1);
-      }
-    });
-  }
-
-  /** A soft bell-like note: quick attack, long fade. */
-  private pluck(note: number, when: number, level: number): void {
+  /** One note with a soft envelope: a gentle attack, a slight settle, and a short release that never clicks. */
+  private note(voice: Voice, midi: number, when: number, length: number, peak: number): void {
     const osc = this.ctx.createOscillator();
-    const overtone = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.frequency.value = midiHz(note);
-    overtone.frequency.value = midiHz(note + 12);
-    const overtoneGain = this.ctx.createGain();
-    overtoneGain.gain.value = 0.18;
+    if (voice === 'arp') osc.setPeriodicWave(this.pulse);
+    else osc.type = voice === 'lead' ? 'square' : 'triangle';
+    osc.frequency.value = midiHz(midi);
+    const attack = voice === 'bass' ? 0.01 : 0.02;
+    const hold = Math.max(attack + 0.02, length * (voice === 'lead' ? 0.92 : 0.8));
+    const release = voice === 'lead' ? 0.18 : 0.08;
     gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.exponentialRampToValueAtTime(0.045 * level, when + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 2.8);
-    osc.connect(gain);
-    overtone.connect(overtoneGain).connect(gain);
-    gain.connect(this.filter);
-    for (const o of [osc, overtone]) {
-      o.start(when);
-      o.stop(when + 3);
-    }
+    gain.gain.exponentialRampToValueAtTime(peak, when + attack);
+    gain.gain.exponentialRampToValueAtTime(peak * 0.7, when + Math.min(hold, attack + 0.25));
+    gain.gain.setValueAtTime(peak * 0.7, when + hold);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + hold + release);
+    osc.connect(gain).connect(this.filter);
+    osc.start(when);
+    osc.stop(when + hold + release + 0.05);
   }
 }
 
