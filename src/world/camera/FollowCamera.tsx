@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
-import { carRefs } from '../carRef';
+import { player, usePlayer } from '../player';
 import { ROADSIDE_FRAME, zoneFor } from '../district/layout';
 import { boardFor } from '../roadside';
-import { telemetry } from '../events';
-import { clampZoom, framing, shouldSnap, ZOOM } from './framing';
+import { clampZoom, framing, shouldSnap, ZOOM, ZOOM_FOOT } from './framing';
 import { arrivalBlend, REVEAL_SECONDS } from './reveal';
 
 /** Matches the CSS breakpoint where the info panel becomes a bottom sheet. */
@@ -14,6 +13,8 @@ const NARROW_WIDTH = 640;
 /** How quickly the camera catches up with the car, and with zoom changes. */
 const FOLLOW_RESPONSE = 6;
 const ZOOM_RESPONSE = 10;
+/** Slower, for the pull-back on getting in and the move in on getting out. */
+const MODE_ZOOM_RESPONSE = 4;
 
 const { damp } = THREE.MathUtils;
 
@@ -32,8 +33,12 @@ export function FollowCamera({ revealing, onRevealDone }: { revealing: boolean; 
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
   const canvas = useThree((s) => s.gl.domElement);
-  const zoom = useRef<number>(ZOOM.default);
-  const shownZoom = useRef<number>(ZOOM.default);
+  // Each mode keeps the visitor's own zoom: close on foot, wider in the car (R7 of the walking character plan).
+  const zooms = useRef({ foot: ZOOM_FOOT.default as number, car: ZOOM.default as number });
+  const zoomMode = () => (usePlayer.getState().mode === 'foot' || usePlayer.getState().mode === 'entering' ? 'foot' : 'car');
+  const shownZoom = useRef<number>(ZOOM_FOOT.default);
+  const lastMode = useRef<'foot' | 'car'>('foot');
+  const switching = useRef(false);
   const follow = useRef<THREE.Vector3 | null>(null);
   const speed = useRef(0);
   const panelBlend = useRef(0);
@@ -45,26 +50,30 @@ export function FollowCamera({ revealing, onRevealDone }: { revealing: boolean; 
   useEffect(() => {
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchStart = 0;
-    let zoomAtPinch: number = zoom.current;
+    let zoomAtPinch: number = zooms.current[zoomMode()];
     const spread = () => {
       const [a, b] = [...pointers.values()];
       return Math.hypot(a.x - b.x, a.y - b.y);
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      zoom.current = clampZoom(zoom.current * (1 + e.deltaY * 0.0015));
+      const mode = zoomMode();
+      zooms.current[mode] = clampZoom(zooms.current[mode] * (1 + e.deltaY * 0.0015), mode);
     };
     const onDown = (e: PointerEvent) => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2) {
         pinchStart = spread();
-        zoomAtPinch = zoom.current;
+        zoomAtPinch = zooms.current[zoomMode()];
       }
     };
     const onMove = (e: PointerEvent) => {
       if (!pointers.has(e.pointerId)) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pointers.size === 2 && pinchStart > 0) zoom.current = clampZoom(zoomAtPinch * (pinchStart / Math.max(1, spread())));
+      if (pointers.size === 2 && pinchStart > 0) {
+        const mode = zoomMode();
+        zooms.current[mode] = clampZoom(zoomAtPinch * (pinchStart / Math.max(1, spread())), mode);
+      }
     };
     const onUp = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
@@ -86,7 +95,7 @@ export function FollowCamera({ revealing, onRevealDone }: { revealing: boolean; 
 
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1);
-    const visual = carRefs.visual;
+    const visual = player.follow;
     if (!visual) return;
     const state = usePortfolio.getState();
     visual.getWorldPosition(scratch.car);
@@ -101,8 +110,16 @@ export function FollowCamera({ revealing, onRevealDone }: { revealing: boolean; 
         damp(follow.current.z, scratch.car.z, FOLLOW_RESPONSE, dt),
       );
     }
-    speed.current = damp(speed.current, Math.abs(telemetry.speed), 2, dt);
-    shownZoom.current = damp(shownZoom.current, zoom.current, ZOOM_RESPONSE, dt);
+    speed.current = damp(speed.current, player.speed, 2, dt);
+    // Getting in or out eases gently between the two zooms; the visitor's own zooming stays quick.
+    const mode = zoomMode();
+    if (mode !== lastMode.current) {
+      lastMode.current = mode;
+      switching.current = true;
+    }
+    const wanted = zooms.current[mode];
+    shownZoom.current = damp(shownZoom.current, wanted, switching.current ? MODE_ZOOM_RESPONSE : ZOOM_RESPONSE, dt);
+    if (Math.abs(shownZoom.current - wanted) < 0.5) switching.current = false;
 
     // Opening: runs while revealing. The camera sits exactly on the framing every frame, so a skip (or reduced
     // motion) lands straight on the driving view.

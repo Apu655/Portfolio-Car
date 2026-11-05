@@ -20,6 +20,7 @@ import { Footballs } from './scene/Footballs';
 import { SectionGates } from './scene/SectionGates';
 import { KnockOvers } from './scene/KnockOvers';
 import { Landmarks } from './scene/Landmarks';
+import { Walker } from './scene/Walker';
 import { RoadsideBillboards } from './scene/RoadsideBillboards';
 import { RoadsideCaptionProjector } from './scene/RoadsideCaptionProjector';
 import { RoadsideCaption } from '../ui/RoadsideCaption';
@@ -87,6 +88,7 @@ export default function World3D() {
               <Props />
               <Footballs />
               <Car />
+              <Walker />
               <KnockOvers />
               {/* Inside the physics world: the robot's bump sensor follows it (Landmarks). */}
               <Landmarks />

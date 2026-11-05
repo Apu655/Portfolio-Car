@@ -2,18 +2,18 @@ import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ROADSIDE_FRAME, roadsidePoint } from '../district/layout';
-import { telemetry } from '../events';
+import { player } from '../player';
 import { ROADSIDE_BOARDS } from '../roadside';
 import { captionElement, nearestBoard, shownBoard, useRoadsideCaption } from '../roadsideCaptions';
 
 /**
- * Picks the board the car is nearest to and pins its caption card at the face's lower left corner, hanging toward
+ * Picks the board the player is nearest to and pins its caption card at the face's lower left corner, hanging toward
  * the road: the next boards along the road stand lower right on screen, so the card never covers them (KTD7).
  */
 export function RoadsideCaptionProjector() {
   const point = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera, size }) => {
-    const [cx, , cz] = telemetry.position;
+    const [cx, , cz] = player.position;
     const state = useRoadsideCaption.getState();
     state.setNearest(nearestBoard(ROADSIDE_BOARDS, cx, cz));
     const key = shownBoard(useRoadsideCaption.getState());

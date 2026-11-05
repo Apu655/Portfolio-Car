@@ -1,5 +1,5 @@
 import { VIEW } from '../district/layout';
-import { ARRIVAL, clampZoom, framing, shouldSnap, SPEED_EXTRA, ZOOM, type Vec3 } from './framing';
+import { ARRIVAL, clampZoom, framing, shouldSnap, SPEED_EXTRA, ZOOM, ZOOM_FOOT, type Vec3 } from './framing';
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const length = (v: Vec3) => Math.hypot(v[0], v[1], v[2]);
@@ -92,5 +92,19 @@ describe('arrival and panel framing', () => {
     const plain = framing({ follow: [2.5, 0.6, -14], zoom: ZOOM.default, speed: 0, aspect: 1.6 });
     const dir = (f: typeof plain) => unit(sub(f.position, f.target));
     dir(framed).forEach((v, i) => expect(v).toBeCloseTo(dir(plain)[i], 6));
+  });
+});
+
+describe('the on-foot view', () => {
+  it('frames the walking character at its own closer distance', () => {
+    expect(framing({ follow: [0, 0, 0], zoom: ZOOM_FOOT.default, speed: 0, aspect: 1.6 }).distance).toBeCloseTo(ZOOM_FOOT.default, 6);
+    expect(ZOOM_FOOT.default).toBeLessThan(ZOOM.min);
+  });
+
+  it('clamps zoom to the range of the mode the visitor is in', () => {
+    expect(clampZoom(ZOOM_FOOT.min / 2, 'foot')).toBe(ZOOM_FOOT.min);
+    expect(clampZoom(ZOOM.max, 'foot')).toBe(ZOOM_FOOT.max);
+    expect(clampZoom(ZOOM_FOOT.default, 'car')).toBe(ZOOM.min);
+    expect(clampZoom(ZOOM.max * 3)).toBe(ZOOM.max);
   });
 });

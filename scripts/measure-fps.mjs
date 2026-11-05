@@ -102,6 +102,9 @@ async function main() {
     await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 60_000 });
     await page.keyboard.press('KeyQ'); // any key skips the opening reveal
     await page.getByRole('button', { name: 'Start driving' }).click();
+    // The visitor starts on foot beside the car; F gets in.
+    await page.keyboard.press('KeyF');
+    await page.waitForFunction(() => window.__district.mode() === 'driving', null, { timeout: 10_000 });
     await page.evaluate(([x, z, h]) => window.__district.place(x, z, h), [ROUTE[0][0], ROUTE[0][1], headingToward(ROUTE[0], ROUTE[5])]);
     await page.waitForTimeout(SETTLE_MS);
 

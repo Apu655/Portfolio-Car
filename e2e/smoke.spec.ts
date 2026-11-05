@@ -17,7 +17,7 @@ async function hasWebGL(page: Page) {
   return page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
 }
 
-/** Open the district, skip the opening reveal, dismiss the welcome card, and wait for the car to land. */
+/** Open the district, skip the opening reveal, dismiss the welcome card, wait for the car to land, and get in. */
 async function startDriving(page: Page, path = '/?e2e#/3d') {
   await page.goto(path);
   test.skip(!(await hasWebGL(page)), 'This headless browser has no WebGL; the quick-view test covers the fallback.');
@@ -25,6 +25,11 @@ async function startDriving(page: Page, path = '/?e2e#/3d') {
   await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
   await page.keyboard.press('KeyQ'); // any key skips the reveal
   await page.getByRole('button', { name: 'Start driving' }).click();
+  // The visitor starts on foot beside the car; F gets in.
+  await expect.poll(() => page.evaluate(() => window.__district!.mode())).toBe('foot');
+  await page.keyboard.press('KeyF');
+  await expect.poll(() => page.evaluate(() => window.__district!.mode())).toBe('driving');
+  await page.waitForTimeout(1200); // the camera eases out to the driving view
 }
 
 async function place(page: Page, x: number, z: number, heading: number) {

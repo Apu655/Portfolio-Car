@@ -9,6 +9,7 @@ import { carRefs } from '../carRef';
 import { distanceToCollider, STATIC_COLLIDERS } from '../district/colliders';
 import { CAMPUS, PROJECTS_HALL, ROBOT, SECTION_LETTERS, zoneFor } from '../district/layout';
 import { emit, telemetry } from '../events';
+import { player } from '../player';
 import { bubbleElement, useRoadsideCaption } from '../roadsideCaptions';
 import { dissolveTargets, makeDissolvable } from './dissolve';
 import { enableShadows, MODEL_URLS, useModel } from './District';
@@ -146,6 +147,8 @@ export function Landmarks() {
     const state = usePortfolio.getState();
     const captions = useRoadsideCaption.getState();
     const [cx, , cz] = telemetry.position;
+    // The robot greets and turns toward the player, on foot or driving.
+    const [playerX, , playerZ] = player.position;
 
     // Where the bump has left the robot, waiting on its way home while the car sits in the way.
     const [ox, oz] = reaction.current.offset;
@@ -172,7 +175,7 @@ export function Landmarks() {
     robotGroup.quaternion.copy(leaning ? turn.lean.multiply(turn.spin) : turn.spin);
 
     const pose = robotPose({
-      toCar: [cx - x, cz - z],
+      toCar: [playerX - x, playerZ - z],
       facing: turn.yaw,
       time: clock.elapsedTime,
       inZone: state.nearStop?.name === ROBOT_ZONE.name,

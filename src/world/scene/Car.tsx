@@ -4,7 +4,8 @@ import { CuboidCollider, RigidBody, useBeforePhysicsStep, useRapier, type Rapier
 import * as THREE from 'three';
 import { usePortfolio } from '../../state/store';
 import { carRefs } from '../carRef';
-import { SPAWN, zoneAt, zoneFor, zoneSelection, type Zone } from '../district/layout';
+import { player, PLAYER, travelTarget, usePlayer } from '../player';
+import { SPAWN, zoneFor, type Zone } from '../district/layout';
 import { combineInputs, readKeyboardInput, touchActions, touchInput, touchStick, useDriveKeys, wantsRecover } from '../drive/input';
 import { stickToDrive } from '../drive/screenSteer';
 import { emit, telemetry } from '../events';
@@ -33,14 +34,15 @@ const VISUAL_OFFSET_Y = -0.7;
 
 const NO_INPUT = { throttle: 0, steer: 0, handbrake: false, boost: false };
 
-function destinationFor(section: string | undefined): { position: [number, number]; heading: number } | null {
+/** Where fast travel to `section` lands: its stop's parking spot, or the start for the About page. */
+export function destinationFor(section: string | undefined): { position: [number, number]; heading: number } | null {
   if (!section) return null;
   if (section === 'about') return SPAWN;
   const zone: Zone = zoneFor(section as Zone['section']);
   return zone.parking;
 }
 
-/** The player's car: Rapier raycast vehicle, input, zones, fast travel, recovery, and its lights. */
+/** The car: Rapier raycast vehicle, input while driven, fast travel while driven, recovery, and its lights. */
 export function Car() {
   const { world, rapier } = useRapier();
   const gltf = useModel(MODEL_URLS.car);
@@ -55,7 +57,6 @@ export function Car() {
   /** After the reveal, ignore driving keys until they are all released (the skip key must not launch the car). */
   const inputArmed = useRef(true);
   const recoverHeld = useRef(false);
-  const lastZone = useRef<Zone | null>(null);
   const water = useMemo(() => new WaterContact(), []);
   const navToken = usePortfolio((s) => s.navToken);
 
@@ -97,6 +98,8 @@ export function Car() {
     const { selection, travel } = usePortfolio.getState();
     throttleArmed.current = false;
     if (!travel) return;
+    // On foot the walker travels instead, and the car stays where it was left (R9).
+    if (travelTarget(usePlayer.getState().mode) !== 'car') return;
     const destination = destinationFor(selection?.section);
     if (destination) placeChassis(chassis, destination.position, destination.heading);
   }, [navToken]);
@@ -114,6 +117,16 @@ export function Car() {
     if (state.revealing) inputArmed.current = false;
     else if (!inputArmed.current && !anyInput) inputArmed.current = true;
     if (!inputArmed.current) input = NO_INPUT;
+
+    // Only a driven car takes input. Parked, it holds its handbrake; asked to stop, it brakes to a standstill so
+    // the character can step out (KTD8).
+    const mode = usePlayer.getState().mode;
+    if (mode === 'stopping') {
+      const rolling = forwardSpeed(v);
+      input = { ...NO_INPUT, throttle: rolling > PLAYER.stopSpeed ? -1 : rolling < -PLAYER.stopSpeed ? 1 : 0, handbrake: true };
+    } else if (mode !== 'driving') {
+      input = { ...NO_INPUT, handbrake: true };
+    }
 
     if (state.panelOpen || state.view !== '3d') {
       // Parked while a panel is open; a fresh throttle press closes the panel and drives off.
@@ -165,26 +178,24 @@ export function Car() {
       const contact = v.wheelIsInContact(wheel) ? v.wheelContactPoint(wheel) : null;
       telemetry.rearContacts[slot] = contact ? [contact.x, contact.y, contact.z] : null;
     }
+    if (mode === 'driving' || mode === 'stopping') {
+      player.position = [p.x, p.y, p.z];
+      player.heading = heading;
+      player.speed = Math.abs(speed);
+    }
     if (wet.entered) emit({ type: 'waterEnter', speed: Math.abs(speed) });
     if (wet.exited) emit({ type: 'waterExit' });
     if (wet.splash) emit({ type: 'splash', intensity: wet.splash.intensity, position: wet.splash.position });
     telemetry.wet = inWater ? 4 : Math.max(0, telemetry.wet - dt);
     telemetry.inWater = inWater;
-
-    // Entrance zones drive the E prompt.
-    const zone = zoneAt(p.x, p.z);
-    if (zone !== lastZone.current) {
-      if (lastZone.current) emit({ type: 'zoneExit', section: lastZone.current.section });
-      if (zone) emit({ type: 'zoneEnter', section: zone.section });
-      lastZone.current = zone;
-      state.setNearStop(zone ? { selection: zoneSelection(zone), name: zone.name, verb: zone.verb } : null);
-    }
   });
 
   useFrame(() => {
     const v = vehicle.current;
     if (!v) return;
     carRefs.visual = visual.current;
+    const mode = usePlayer.getState().mode;
+    if (mode === 'driving' || mode === 'stopping') player.follow = visual.current;
     // Wheels: suspension travel, spin, and steering.
     model.wheels.forEach((wheel, i) => {
       const length = v.wheelSuspensionLength(i) ?? CAR_TUNING.suspensionRestLength;

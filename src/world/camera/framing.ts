@@ -7,6 +7,8 @@ export type { Vec3 };
 
 /** Camera distance (m) along the fixed direction: the visitor's zoom range (R4). */
 export const ZOOM = { min: 26, max: 110, default: 52 } as const;
+/** The closer range on foot, so the walking character reads clearly (R7 of the walking character plan). */
+export const ZOOM_FOOT = { min: 14, max: 40, default: 20 } as const;
 /** Extra distance (m) at top speed, so more road ahead shows when driving fast (R6). */
 export const SPEED_EXTRA = 12;
 const TOP_SPEED = 26;
@@ -51,8 +53,10 @@ export interface Framing {
   distance: number;
 }
 
-export function clampZoom(zoom: number): number {
-  return Math.min(ZOOM.max, Math.max(ZOOM.min, zoom));
+/** Clamp a zoom to the range of the mode the visitor is in. */
+export function clampZoom(zoom: number, mode: 'foot' | 'car' = 'car'): number {
+  const range = mode === 'foot' ? ZOOM_FOOT : ZOOM;
+  return Math.min(range.max, Math.max(range.min, zoom));
 }
 
 /** Portrait screens show less width, so they start farther out to show a comparable area (R12). */
@@ -68,7 +72,8 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export function framing(input: FramingInput): Framing {
   const speedExtra = SPEED_EXTRA * Math.min(1, Math.abs(input.speed) / TOP_SPEED);
-  let distance = clampZoom(input.zoom) * viewportFactor(input.aspect) + speedExtra;
+  // Either mode's range: the camera eases between the on-foot and driving zooms as the visitor gets in or out.
+  let distance = Math.min(ZOOM.max, Math.max(ZOOM_FOOT.min, input.zoom)) * viewportFactor(input.aspect) + speedExtra;
   let fx = input.follow[0];
   let fy = TARGET_HEIGHT;
   let fz = input.follow[2];

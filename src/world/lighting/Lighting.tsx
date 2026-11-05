@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { carRefs } from '../carRef';
+import { player } from '../player';
 import { dayClock } from './clock';
 import { lightingState } from './state';
 import { environmentStale, lightingAt, type RGB } from './timeOfDay';
@@ -142,8 +142,8 @@ export function Lighting({ shadows, shadowMapSize }: { shadows: boolean; shadowM
     }
     const light = sun.current;
     if (light) {
-      // The shadow camera follows the car, so nearby props, trees, and the car itself cast crisp shadows.
-      carRefs.visual?.getWorldPosition(scratch.focus);
+      // The shadow camera follows the player, so nearby props, trees, the car and the walker cast crisp shadows.
+      player.follow?.getWorldPosition(scratch.focus);
       scratch.focus.set(Math.round(scratch.focus.x), 0, Math.round(scratch.focus.z));
       srgb(l.sunColor, light.color);
       light.intensity = l.sunIntensity * l.exposure;

@@ -1350,6 +1350,13 @@ kbd {
   stroke-width: 0.8;
 }
 
+/* The parked car while the visitor is on foot. */
+.minimap__parked {
+  fill: #2f8f78;
+  stroke: #fff;
+  stroke-width: 0.8;
+}
+
 .minimap__marker {
   position: absolute;
   transform: translate(-50%, -50%);

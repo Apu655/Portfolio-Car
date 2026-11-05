@@ -45,8 +45,8 @@ export const touchInput: DriveInput = { throttle: 0, steer: 0, handbrake: false,
 /** The on-screen joystick in screen space (x right, y up, each -1..1); the car maps it with `stickToDrive`. */
 export const touchStick = { x: 0, y: 0 };
 
-/** One-shot touch actions (the Recover button). */
-export const touchActions = { recover: false };
+/** One-shot touch actions: the Recover button, and Get in / Get out. */
+export const touchActions = { recover: false, car: false };
 
 /**
  * Keyboard wins when any driving key is held; otherwise the touch controls drive. Shift alone doesn't count as

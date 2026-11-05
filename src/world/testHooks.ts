@@ -1,7 +1,8 @@
 // Inspection hooks for the console and end-to-end tests: on in dev builds, and in production only with `?e2e`.
 // They let a test place the car and observe game events; nothing in the experience depends on them.
 import type { RootState } from '@react-three/fiber';
-import { carRefs } from './carRef';
+import { carRefs, walkerRefs } from './carRef';
+import { travelTarget, usePlayer, type PlayerMode } from './player';
 import { BREAKABLE_COLLIDERS } from './district/colliders';
 import { on, telemetry, type GameEventType } from './events';
 import { placeChassis } from './physics/vehicle';
@@ -12,8 +13,10 @@ export interface DistrictHooks {
   telemetry: typeof telemetry;
   /** Event types seen since the hooks were installed, in order. */
   events: GameEventType[];
-  /** Put the car at (x, z) facing `heading` (radians, 0 = north), at rest. */
+  /** Put the controlled body (the car when driving, the walker on foot) at (x, z) facing `heading`, at rest. */
   place(x: number, z: number, heading: number): void;
+  /** Whether the visitor is on foot, getting in, driving, or stopping to get out. */
+  mode(): PlayerMode;
   /** Every lamp post and tree the car can knock over, where it stands, and whether it is already down. */
   breakables(): Array<{ kind: 'lamp' | 'tree'; x: number; z: number; knocked: boolean }>;
 }
@@ -35,8 +38,13 @@ export function installTestHooks(state: RootState): void {
     telemetry,
     events,
     place: (x, z, heading) => {
-      if (carRefs.body) placeChassis(carRefs.body, [x, z], heading);
+      if (travelTarget(usePlayer.getState().mode) === 'car') {
+        if (carRefs.body) placeChassis(carRefs.body, [x, z], heading);
+      } else {
+        walkerRefs.body?.setTranslation({ x, y: 1.0, z }, true);
+      }
     },
+    mode: () => usePlayer.getState().mode,
     breakables: () =>
       BREAKABLE_COLLIDERS.map((c) => ({
         kind: c.object,

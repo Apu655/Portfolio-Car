@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePortfolio } from '../state/store';
 import { POND, ROADS, SECTION_GATES, SECTION_LETTERS, SECTION_TITLES, TOWER, ZONES } from '../world/district/layout';
 import { telemetry } from '../world/events';
+import { player, usePlayer } from '../world/player';
 import { BoostGauge } from './BoostGauge';
 import { mapAngle, MAP_SCALE, MAP_SIZE, toMap } from './minimapProjection';
 
@@ -37,6 +38,7 @@ export function Minimap() {
   const navigate = usePortfolio((s) => s.navigate);
   const [expanded, setExpanded] = useState(false);
   const car = useRef<SVGGElement>(null);
+  const parked = useRef<SVGGElement>(null);
   const shapes = useMemo(() => {
     const roadWidth = ROADS.width * MAP_SCALE;
     const pond = Array.from({ length: 24 }, (_, k): [number, number] => {
@@ -64,13 +66,20 @@ export function Minimap() {
     };
   }, []);
 
-  // Follow the car without re-rendering: write its marker's transform every frame.
+  // Follow the player without re-rendering: write the marker's transform every frame. On foot, the parked car gets
+  // its own marker so the visitor can find it again.
   useEffect(() => {
     let frame = 0;
     const tick = () => {
-      const [x, , z] = telemetry.position;
+      const [x, , z] = player.position;
       const [mx, my] = toMap(x, z);
-      car.current?.setAttribute('transform', `translate(${mx.toFixed(1)} ${my.toFixed(1)}) rotate(${mapAngle(telemetry.heading).toFixed(1)})`);
+      car.current?.setAttribute('transform', `translate(${mx.toFixed(1)} ${my.toFixed(1)}) rotate(${mapAngle(player.heading).toFixed(1)})`);
+      const onFoot = usePlayer.getState().mode === 'foot';
+      if (parked.current) {
+        parked.current.style.display = onFoot ? '' : 'none';
+        const [cx, cy] = toMap(telemetry.position[0], telemetry.position[2]);
+        parked.current.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) rotate(${mapAngle(telemetry.heading).toFixed(1)})`);
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -97,6 +106,9 @@ export function Minimap() {
         {shapes.gates.map((g) => (
           <circle key={g.section} cx={g.at[0]} cy={g.at[1]} r={2.2} className="minimap__gate" />
         ))}
+        <g ref={parked} aria-hidden="true" style={{ display: 'none' }}>
+          <rect x={-3} y={-5} width={6} height={10} rx={2} className="minimap__parked" />
+        </g>
         <g ref={car} aria-hidden="true">
           <path d="M0 -6 L4.5 5 L0 2.5 L-4.5 5 Z" className="minimap__car" />
         </g>

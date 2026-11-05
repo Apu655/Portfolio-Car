@@ -7,3 +7,6 @@ export const carRefs: {
   /** The visual car root (follows the chassis with interpolation). */
   visual: THREE.Object3D | null;
 } = { body: null, visual: null };
+
+/** The walker's body, for test hooks that place the visitor on foot. */
+export const walkerRefs: { body: RapierRigidBody | null } = { body: null };

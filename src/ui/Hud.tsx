@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { profile } from '../content/portfolio';
 import { usePortfolio } from '../state/store';
+import { usePlayer } from '../world/player';
 import { AudioControls } from './AudioControls';
 import { DayDial } from './DayDial';
 import { Minimap } from './Minimap';
@@ -134,12 +135,23 @@ function RevealHint() {
   );
 }
 
-/** "Press E" prompt while the car sits in a stop's entrance zone. */
+/** "Press E" prompt while the player stands in a stop's entrance zone, or "Press F" beside the car on foot. */
 function InteractPrompt({ touch }: { touch: boolean }) {
   const stop = usePortfolio((s) => s.nearStop);
   const panelOpen = usePortfolio((s) => s.panelOpen);
   const navigate = usePortfolio((s) => s.navigate);
-  if (!stop || panelOpen) return null;
+  const nearCar = usePlayer((s) => s.nearCar);
+  if (panelOpen) return null;
+  if (!stop && nearCar && !touch) {
+    return (
+      <div className="interact-prompt" role="status">
+        <p>
+          Press <kbd>F</kbd> to get in the car
+        </p>
+      </div>
+    );
+  }
+  if (!stop) return null;
   const { name, verb } = stop;
   return (
     <div className="interact-prompt" role="status">
