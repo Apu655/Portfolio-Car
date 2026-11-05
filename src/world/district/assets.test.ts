@@ -141,6 +141,20 @@ describe('built models expose the runtime contract', () => {
     }
   });
 
+  it('character: the chibi figure and the joints its walk swings, about 1.5 m tall and standing on the origin', () => {
+    const character = gltf('character');
+    for (const node of ['character', 'character_head', 'character_arm_l', 'character_arm_r', 'character_leg_l', 'character_leg_r']) {
+      expect(character.nodes.has(node), node).toBe(true);
+    }
+    for (const material of ['char_skin', 'char_hair', 'char_jacket', 'char_jeans']) {
+      expect(character.materials.has(material), material).toBe(true);
+    }
+    const box = bounds(readJson('character'), 'character');
+    near(box.min[1], 0, 'character feet');
+    expect(box.max[1]).toBeGreaterThan(1.35);
+    expect(box.max[1]).toBeLessThan(1.55);
+  });
+
   it('landmarks: each model fills its layout footprint within 0.5 m', () => {
     const json = readJson('landmarks');
 

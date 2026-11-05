@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CapsuleCollider, RigidBody, useBeforePhysicsStep, useRapier, type RapierCollider, type RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
@@ -7,15 +7,20 @@ import { carRefs, walkerRefs } from '../carRef';
 import { pondDepth, SPAWN, zoneAt, zoneSelection, type Zone } from '../district/layout';
 import { readKeyboardInput, touchActions, touchInput, touchStick, useDriveKeys } from '../drive/input';
 import { emit, telemetry } from '../events';
-import { canEnter, doorPoint, pickExit, player, pressF, settle, travelTarget, usePlayer } from '../player';
+import { canEnter, doorPoint, pickExit, player, PLAYER, pressF, settle, travelTarget, usePlayer } from '../player';
 import { headingOf } from '../physics/vehicle';
 import { WALKER_GROUPS, WALKER_QUERY_GROUPS } from '../physics/groups';
 import { kickImpulse, stepAllowed, WALK, walkVelocity } from '../physics/walker';
 import { destinationFor } from './Car';
+import { characterPose, stride } from './characterMotion';
+import { MODEL_URLS, useModel } from './District';
+import { toonify } from './toon';
 
 const GRAVITY = 9.81;
 /** How quickly the figure turns to face where it walks (1/s). */
 const TURN_RESPONSE = 12;
+/** The model stands on its origin; the capsule's centre is this far above its feet. */
+const FEET = -(WALK.halfHeight + WALK.radius);
 const isTyping = (target: EventTarget | null) => target instanceof Element && !!target.closest('input, textarea, select, [contenteditable="true"], [data-keyboard-scope]');
 
 /** The visitor's feet (U1 of the walking character plan): walks the city, and gets in and out of the car with F. */
@@ -32,6 +37,26 @@ export function Walker() {
   const lastZone = useRef<Zone | null>(null);
   const navToken = usePortfolio((s) => s.navToken);
   const mode = usePlayer((s) => s.mode);
+  const gait = useRef({ phase: 0, entering: 0 });
+
+  // The chibi character, toon-shaded, with the joints its walk swings (U3).
+  const model = useModel(MODEL_URLS.character);
+  const character = useMemo(() => {
+    const root = model.scene.getObjectByName('character')!.clone();
+    root.position.set(0, 0, 0);
+    const materials = toonify(root);
+    const joint = (name: string) => root.getObjectByName(name)!;
+    return {
+      root,
+      materials,
+      head: joint('character_head'),
+      armL: joint('character_arm_l'),
+      armR: joint('character_arm_r'),
+      legL: joint('character_leg_l'),
+      legR: joint('character_leg_r'),
+    };
+  }, [model]);
+  useEffect(() => () => character.materials.forEach((m) => m.dispose()), [character]);
 
   // Created in an effect, not a memo: StrictMode runs effects twice, and the cleanup must not free a controller
   // the next mount still uses.
@@ -195,24 +220,48 @@ export function Walker() {
     usePortfolio.getState().setNearStop(zone ? { selection: zoneSelection(zone), name: zone.name, verb: zone.verb } : null);
   });
 
-  useFrame(() => {
+  useFrame(({ clock }, dt) => {
     const m = usePlayer.getState().mode;
-    if ((m === 'foot' || m === 'entering') && figure.current) player.follow = figure.current;
+    const group = figure.current;
+    const b = body.current;
+    if ((m !== 'foot' && m !== 'entering') || !group || !b) {
+      gait.current.entering = 0;
+      return;
+    }
+    player.follow = group;
+    const g = gait.current;
+    g.entering = m === 'entering' ? g.entering + dt : 0;
+    const stepIn = m === 'entering' ? Math.min(1, g.entering / PLAYER.enterSeconds) : null;
+    g.phase = stride(g.phase, player.speed, dt);
+    const pose = characterPose({ speed: player.speed, phase: g.phase, time: clock.elapsedTime, reducedMotion: usePortfolio.getState().reducedMotion, stepIn });
+    character.legL.rotation.x = pose.legL;
+    character.legR.rotation.x = pose.legR;
+    character.armL.rotation.x = pose.armL;
+    character.armR.rotation.x = pose.armR;
+    character.head.rotation.x = -pose.head;
+    character.root.position.y = pose.bob;
+    character.root.rotation.x = -pose.lean;
+
+    // Getting in, the figure glides from where it stood to the driver's door (in the body's own frame).
+    const car = carRefs.body;
+    if (stepIn !== null && car) {
+      const at = car.translation();
+      const [dx, dz] = doorPoint([at.x, at.z], headingOf(car), 1);
+      const p = b.translation();
+      const wx = (dx - p.x) * stepIn;
+      const wz = (dz - p.z) * stepIn;
+      const a = facing.current;
+      group.position.set(wx * Math.cos(a) - wz * Math.sin(a), FEET, wx * Math.sin(a) + wz * Math.cos(a));
+    } else {
+      group.position.set(0, FEET, 0);
+    }
   });
 
   return (
     <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[start.x, 0.15 + WALK.halfHeight + WALK.radius, start.z]} rotation={[0, start.heading, 0]}>
       <CapsuleCollider ref={collider} args={[WALK.halfHeight, WALK.radius]} collisionGroups={WALKER_GROUPS} />
-      {/* A placeholder figure until the character model lands (U3). */}
-      <group ref={figure}>
-        <mesh castShadow position={[0, 0, 0]}>
-          <capsuleGeometry args={[WALK.radius, WALK.halfHeight * 2, 6, 12]} />
-          <meshStandardMaterial color="#e8b04a" roughness={0.6} />
-        </mesh>
-        <mesh castShadow position={[0, 0.35, -0.3]}>
-          <boxGeometry args={[0.18, 0.12, 0.12]} />
-          <meshStandardMaterial color="#2f3640" />
-        </mesh>
+      <group ref={figure} position={[0, FEET, 0]}>
+        <primitive object={character.root} />
       </group>
     </RigidBody>
   );
