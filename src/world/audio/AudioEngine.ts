@@ -11,7 +11,7 @@ import { EngineSynth } from './engineSynth';
 import { MusicBed } from './musicBed';
 import { SampleBank } from './sampleBank';
 import { useAudioSettings } from './settings';
-import { chirp, impact, noiseSource, plunge, poleRing, splash, treeCreak, uiSound, whoosh } from './synth';
+import { chirp, crackle, gadgetPop, impact, noiseSource, plunge, poleRing, splash, treeCreak, uiSound, whoosh } from './synth';
 import { VoiceLimiter } from './voiceLimiter';
 
 export interface Listener {
@@ -106,6 +106,9 @@ export class AudioEngine {
         const variant = Math.floor(Math.random() * 3);
         this.oneShot('robotHit', 0.4, e.position, 0.9, (out, when) => chirp(this.ctx!, out, variant, when), 0.6);
       }),
+      on('companion', (e) =>
+        this.oneShot(`companion:${e.kind}`, 0.5, e.position, 0.8, (out, when) => (e.kind === 'critter' ? crackle(this.ctx!, out, when) : gadgetPop(this.ctx!, out, when)), 0.5),
+      ),
       on('zoneEnter', () => this.ui('zone')),
     ];
     const unsubscribe = useAudioSettings.subscribe(() => this.applySettings());

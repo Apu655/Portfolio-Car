@@ -155,6 +155,19 @@ describe('built models expose the runtime contract', () => {
     expect(box.max[1]).toBeLessThan(1.55);
   });
 
+  it.each([
+    ['critter', ['critter_foot_l', 'critter_foot_r', 'critter_arm_l', 'critter_arm_r', 'critter_tail'], 'critter_glow', [0.5, 0.85]],
+    ['cat', ['cat_head', 'cat_leg_l', 'cat_leg_r', 'cat_arm_l', 'cat_arm_r', 'cat_tail', 'cat_gadget'], 'cat_gadget_glow', [0.75, 1]],
+  ] as const)('%s: the companion, its joints and its glow, standing on the origin', (name, joints, glow, [low, high]) => {
+    const model = gltf(name);
+    for (const node of [name, ...joints]) expect(model.nodes.has(node), node).toBe(true);
+    expect(model.materials.has(glow)).toBe(true);
+    const box = bounds(readJson(name), name);
+    near(box.min[1], 0, `${name} feet`);
+    expect(box.max[1]).toBeGreaterThan(low);
+    expect(box.max[1]).toBeLessThan(high);
+  });
+
   it('landmarks: each model fills its layout footprint within 0.5 m', () => {
     const json = readJson('landmarks');
 

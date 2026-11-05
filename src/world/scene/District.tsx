@@ -21,6 +21,8 @@ export const MODEL_URLS = {
   props: '/models/props.glb',
   car: '/models/car.glb',
   character: '/models/character.glb',
+  critter: '/models/critter.glb',
+  cat: '/models/cat.glb',
 } as const;
 
 /** Load a model with the bundled meshopt decoder (no Draco, no CDN). */

@@ -222,3 +222,23 @@ export function whoosh(ctx: BaseAudioContext, out: AudioNode, when: number): num
   source.stop(when + 0.6);
   return 0.55;
 }
+
+/** Fizz's sparks: a short, bright crackle of clicks, thinning out. `random` is injectable for tests. */
+export function crackle(ctx: BaseAudioContext, out: AudioNode, when: number, random: () => number = Math.random): number {
+  let at = when;
+  for (let i = 0; i < 9; i++) {
+    noiseBurst(ctx, out, at, 'highpass', 2800 + random() * 3500, 0.8, 0.16 * (1 - i / 12), 0.018 + random() * 0.02);
+    at += 0.015 + random() * 0.045 * (1 + i / 4);
+  }
+  tone(ctx, out, when, 'square', 1900, 0.02, 0.12, 2600);
+  return at - when + 0.05;
+}
+
+/** Cogs showing off: a two-note chirp up, then a little pop as the gadget springs out of the backpack. */
+export function gadgetPop(ctx: BaseAudioContext, out: AudioNode, when: number): number {
+  tone(ctx, out, when, 'triangle', 660, 0.07, 0.08, 880);
+  tone(ctx, out, when + 0.09, 'triangle', 990, 0.07, 0.1, 1320);
+  tone(ctx, out, when + 0.22, 'sine', 240, 0.16, 0.08, 620);
+  noiseBurst(ctx, out, when + 0.22, 'bandpass', 1400, 1.5, 0.08, 0.05);
+  return 0.35;
+}

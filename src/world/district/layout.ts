@@ -174,6 +174,29 @@ export const FOOTBALLS: Vec2[] = [-1, 1].flatMap((row) => [-1.5, -0.5, 0.5, 1.5]
 const onPitch = (x: number, z: number, margin: number) =>
   Math.abs(x - PITCH.center[0]) < PITCH.size[0] / 2 + margin && Math.abs(z - PITCH.center[1]) < PITCH.size[1] / 2 + margin;
 
+/**
+ * Where the companions live (KTD5 of the walking character plan): home areas (center x/z, size x/z) and the idle
+ * spots they wander between. Fizz the critter keeps to the park, the pitch and a patch of lawn across the cross
+ * street; Cogs the cat keeps to the prop plaza, a lane beside the cross street and the tower forecourt.
+ */
+export const COMPANION_HOMES = {
+  critter: {
+    areas: [
+      { name: 'park', center: [-34, 6] as Vec2, size: [36, 66] as Vec2 },
+      { name: 'east lawn', center: [10, 24] as Vec2, size: [8, 10] as Vec2 },
+    ],
+    spots: [[-38, 28], [-26, 34], [-35, 18], [-22, 20], [-18, -6], [-24, -20], [10, 24]] as Vec2[],
+  },
+  cat: {
+    areas: [
+      { name: 'prop plaza', center: [30, 35] as Vec2, size: [36, 22] as Vec2 },
+      { name: 'lane', center: [7.5, 10] as Vec2, size: [4, 32] as Vec2 },
+      { name: 'forecourt', center: [14, -18] as Vec2, size: [14, 26] as Vec2 },
+    ],
+    spots: [[16, 30], [28, 41], [40, 36], [45, 27], [7.5, 22], [7.5, -2], [12, -10], [12, -25]] as Vec2[],
+  },
+} as const;
+
 /** Shallow pond in the park (west half of the loop). */
 export const POND = { center: [-35, -6] as Vec2, radiusX: 14, radiusZ: 10, depth: 0.7, shore: 3.5 };
 

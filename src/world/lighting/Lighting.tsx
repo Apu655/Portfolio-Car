@@ -17,6 +17,8 @@ export const NIGHT_GLOW: Array<[string, number, number]> = [
   ['roadside_lamp', 0.3, 3],
   ['robot_eye', 1, 2.5],
   ['robot_screen', 0.8, 2],
+  ['critter_glow', 0.8, 2.6],
+  ['cat_gadget_glow', 0.8, 2.6],
   ['hall_window_lit', 0.05, 1.6],
   ['campus_window_lit', 0.05, 1.5],
   ['neon_', 0.3, 2.6],

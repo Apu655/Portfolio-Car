@@ -18,6 +18,7 @@ import { LabelProjector } from './scene/LabelProjector';
 import { Props } from './scene/Props';
 import { Footballs } from './scene/Footballs';
 import { SectionGates } from './scene/SectionGates';
+import { Companions } from './scene/Companions';
 import { KnockOvers } from './scene/KnockOvers';
 import { Landmarks } from './scene/Landmarks';
 import { Walker } from './scene/Walker';
@@ -89,6 +90,7 @@ export default function World3D() {
               <Footballs />
               <Car />
               <Walker />
+              <Companions />
               <KnockOvers />
               {/* Inside the physics world: the robot's bump sensor follows it (Landmarks). */}
               <Landmarks />
