@@ -1,5 +1,5 @@
 // Covers AE4: no audio context exists until the visitor's first gesture.
-import { AudioEngine, knockVoice, nitroHiss, voiceGain } from './AudioEngine';
+import { AudioEngine, carBusLevel, knockVoice, nitroHiss, voiceGain } from './AudioEngine';
 import { useAudioSettings } from './settings';
 
 describe('audio unlock (AE4)', () => {
@@ -60,5 +60,12 @@ describe('knocking over a lamp or a tree', () => {
   it('a harder hit plays louder', () => {
     expect(knockVoice('lamp', 1).level).toBeGreaterThan(knockVoice('lamp', 0.3).level);
     expect(knockVoice('tree', 1).level).toBeGreaterThan(knockVoice('tree', 0.3).level);
+  });
+});
+
+describe('the car’s sound while on foot', () => {
+  it('fades the engine down when the visitor gets out, and back up when they drive', () => {
+    expect(carBusLevel('foot')).toBeLessThan(carBusLevel('driving') / 4);
+    expect(carBusLevel('stopping')).toBe(carBusLevel('driving'));
   });
 });

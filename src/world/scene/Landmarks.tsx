@@ -9,6 +9,7 @@ import { carRefs } from '../carRef';
 import { distanceToCollider, STATIC_COLLIDERS } from '../district/colliders';
 import { CAMPUS, PROJECTS_HALL, ROBOT, SECTION_LETTERS, zoneFor } from '../district/layout';
 import { emit, telemetry } from '../events';
+import { WALKER_BLOCKER_GROUPS } from '../physics/groups';
 import { player } from '../player';
 import { bubbleElement, useRoadsideCaption } from '../roadsideCaptions';
 import { dissolveTargets, makeDissolvable } from './dissolve';
@@ -218,6 +219,8 @@ export function Landmarks() {
       {/* A sensor that follows the robot: the car passes through and bumps it instead of stopping against it. */}
       <RigidBody ref={robotBody} type="kinematicPosition" colliders={false} position={[ROBOT.position[0], 0, ROBOT.position[1]]}>
         <CylinderCollider sensor args={[ROBOT.height / 2, ROBOT.radius]} position={[0, ROBOT.height / 2, 0]} onIntersectionEnter={onBump} />
+        {/* Solid only to someone on foot, who walks up to it rather than through it. */}
+        <CylinderCollider args={[ROBOT.height / 2, ROBOT.radius * 0.8]} position={[0, ROBOT.height / 2, 0]} collisionGroups={WALKER_BLOCKER_GROUPS} />
       </RigidBody>
       <Selectable selection={{ section: 'projects' }}>
         <group position={[PROJECTS_HALL.center[0], 0, PROJECTS_HALL.center[1]]} rotation={[0, PROJECTS_HALL.facing, 0]}>

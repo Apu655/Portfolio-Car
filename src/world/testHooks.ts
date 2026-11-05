@@ -2,7 +2,7 @@
 // They let a test place the car and observe game events; nothing in the experience depends on them.
 import type { RootState } from '@react-three/fiber';
 import { carRefs, walkerRefs } from './carRef';
-import { travelTarget, usePlayer, type PlayerMode } from './player';
+import { player, travelTarget, usePlayer, type PlayerMode } from './player';
 import { BREAKABLE_COLLIDERS } from './district/colliders';
 import { on, telemetry, type GameEventType } from './events';
 import { placeChassis } from './physics/vehicle';
@@ -17,6 +17,8 @@ export interface DistrictHooks {
   place(x: number, z: number, heading: number): void;
   /** Whether the visitor is on foot, getting in, driving, or stopping to get out. */
   mode(): PlayerMode;
+  /** Where the visitor is (the walker on foot, the car when driving) and which way they face. */
+  player(): { position: [number, number, number]; heading: number };
   /** Every lamp post and tree the car can knock over, where it stands, and whether it is already down. */
   breakables(): Array<{ kind: 'lamp' | 'tree'; x: number; z: number; knocked: boolean }>;
 }
@@ -45,6 +47,7 @@ export function installTestHooks(state: RootState): void {
       }
     },
     mode: () => usePlayer.getState().mode,
+    player: () => ({ position: [...player.position], heading: player.heading }),
     breakables: () =>
       BREAKABLE_COLLIDERS.map((c) => ({
         kind: c.object,

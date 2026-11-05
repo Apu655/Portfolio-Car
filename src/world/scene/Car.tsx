@@ -11,7 +11,7 @@ import { stickToDrive } from '../drive/screenSteer';
 import { emit, telemetry } from '../events';
 import { lightingState } from '../lighting/state';
 import { FULL_TANK, tickBoost } from '../physics/boost';
-import { CAR_GROUPS, WHEEL_RAY_GROUPS } from '../physics/groups';
+import { CAR_GROUPS, WALKER_BLOCKER_GROUPS, WHEEL_RAY_GROUPS } from '../physics/groups';
 import { WaterContact } from '../physics/water';
 import {
   applyDrive,
@@ -233,6 +233,8 @@ export function Car() {
       canSleep={false}
     >
       <CuboidCollider args={[...CAR_TUNING.chassisHalf]} position={[0, CAR_TUNING.chassisOffsetY, 0]} mass={CAR_TUNING.mass} friction={0.4} restitution={0.1} collisionGroups={CAR_GROUPS} />
+      {/* The parked car stops someone walking into it, without the walker ever pushing it. */}
+      <CuboidCollider args={[...CAR_TUNING.chassisHalf]} position={[0, CAR_TUNING.chassisOffsetY, 0]} mass={0} collisionGroups={WALKER_BLOCKER_GROUPS} />
       <group ref={visual}>
         <primitive object={model.scene} position={[0, VISUAL_OFFSET_Y, 0]} />
         <group position={[0, VISUAL_OFFSET_Y, 0]}>

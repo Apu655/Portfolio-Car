@@ -6,7 +6,7 @@ import { usePortfolio } from '../../state/store';
 import { carRefs } from '../carRef';
 import { BREAKABLE_COLLIDERS } from '../district/colliders';
 import { emit, telemetry } from '../events';
-import { THROWN_GROUPS } from '../physics/groups';
+import { THROWN_GROUPS, WALKER_BLOCKER_GROUPS } from '../physics/groups';
 import { carAfterKnock, copyFade, KNOCK, knockIntensity, throwOf, type KnockKind } from '../physics/knock';
 import { cutObject, HIDEABLE, isKnocked, knock, lampId, treeId } from './breakables';
 import { MODEL_URLS, useModel } from './District';
@@ -132,6 +132,10 @@ export function KnockOvers() {
       <RigidBody type="fixed" colliders={false}>
         {standing.map((c) => (
           <CylinderCollider key={c.name} sensor args={[c.halfHeight, c.radius]} position={c.position} onIntersectionEnter={onEnter(c)} />
+        ))}
+        {/* The same posts and trunks stop someone walking into them; only the car knocks them over. */}
+        {standing.map((c) => (
+          <CylinderCollider key={`${c.name}-walker`} args={[c.halfHeight, c.radius]} position={c.position} collisionGroups={WALKER_BLOCKER_GROUPS} />
         ))}
       </RigidBody>
       {copies.map((copy) => (

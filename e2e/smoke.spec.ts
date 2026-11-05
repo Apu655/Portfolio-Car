@@ -65,7 +65,7 @@ test('quick view renders every section, downloads no 3D assets, and the résumé
 test('drive into the Career zone, press E, read MetLife and the dates, drive off', async ({ page }) => {
   const errors = collectErrors(page);
   await startDriving(page);
-  await place(page, 2.5, 0, NORTH); // on the cross street, facing the tower forecourt
+  await place(page, 2.5, -6, NORTH); // on the cross street, close enough to the forecourt to arrive slowly
 
   const prompt = page.locator('.interact-prompt');
   await page.keyboard.down('KeyW');
@@ -335,6 +335,42 @@ test('bumping the robot shoves it aside, and it walks back to its spot (AE3)', a
   await place(page, 40, 57.5, -Math.PI / 2); // out of its way
   await expect.poll(async () => { const at = await robotAt(); return Math.hypot(at[0] - home[0], at[1] - home[1]); }, { timeout: 8_000 }).toBeLessThan(0.05);
 
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('on foot, a lamp post stops the walker and stays standing, and E opens the Career panel (AE3)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/?e2e#/3d');
+  test.skip(!(await hasWebGL(page)), 'This headless browser has no WebGL.');
+  await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
+  await page.keyboard.press('KeyQ');
+  await page.getByRole('button', { name: 'Start driving' }).click();
+  expect(await page.evaluate(() => window.__district!.mode())).toBe('foot');
+
+  const lamp = (await page.evaluate(() => window.__district!.breakables())).find((b) => b.kind === 'lamp' && Math.hypot(b.x + 20, b.z - 61.2) < 0.1)!;
+  await place(page, lamp.x - 3, lamp.z, 0);
+  // W and D together walk east on screen-relative controls, straight at the lamp. The walker may slide round the
+  // pole, but never passes through it.
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('KeyD');
+  let closest = Infinity;
+  for (let i = 0; i < 40; i++) {
+    await page.waitForTimeout(60);
+    const p = (await page.evaluate(() => window.__district!.player())).position;
+    closest = Math.min(closest, Math.hypot(p[0] - lamp.x, p[2] - lamp.z));
+  }
+  await page.keyboard.up('KeyD');
+  await page.keyboard.up('KeyW');
+  expect(closest).toBeLessThan(1); // it walked right up to the lamp...
+  expect(closest).toBeGreaterThan(0.4); // ...and was stopped at its pole
+  const lampNow = (await page.evaluate(() => window.__district!.breakables())).find((b) => b.x === lamp.x && b.z === lamp.z)!;
+  expect(lampNow.knocked).toBe(false);
+  expect(await events(page)).not.toContain('knock');
+
+  await place(page, 2.5, -18, NORTH); // inside the Career Tower's entrance zone
+  await expect(page.locator('.interact-prompt')).toContainText('Career Tower');
+  await page.keyboard.press('KeyE');
+  await expect(page.getByRole('dialog', { name: 'Software Engineer – AI' })).toBeVisible();
   expect(errors.map((e) => e.text())).toEqual([]);
 });
 

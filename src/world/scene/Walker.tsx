@@ -9,7 +9,8 @@ import { readKeyboardInput, touchActions, touchInput, touchStick, useDriveKeys }
 import { emit, telemetry } from '../events';
 import { canEnter, doorPoint, pickExit, player, pressF, settle, travelTarget, usePlayer } from '../player';
 import { headingOf } from '../physics/vehicle';
-import { WALK, walkVelocity } from '../physics/walker';
+import { WALKER_GROUPS, WALKER_QUERY_GROUPS } from '../physics/groups';
+import { kickImpulse, stepAllowed, WALK, walkVelocity } from '../physics/walker';
 import { destinationFor } from './Car';
 
 const GRAVITY = 9.81;
@@ -47,12 +48,12 @@ export function Walker() {
       world.removeCharacterController(c);
     };
   }, [world]);
-  useEffect(() => {
-    walkerRefs.body = body.current;
-    return () => {
+  useEffect(
+    () => () => {
       walkerRefs.body = null;
-    };
-  }, []);
+    },
+    [],
+  );
 
   // Start on foot beside the parked car's driver's door (R1).
   const [start] = useState(() => {
@@ -114,6 +115,7 @@ export function Walker() {
     const car = carRefs.body;
     const controller = controllerRef.current;
     if (!b || !c || !car || !controller) return;
+    walkerRefs.body = b;
     const dt = w.timestep;
     clock.current += dt;
     const store = usePlayer.getState();
@@ -149,11 +151,24 @@ export function Walker() {
     const keyStick = { x: (keys.current.has('KeyD') || keys.current.has('ArrowRight') ? 1 : 0) - (keys.current.has('KeyA') || keys.current.has('ArrowLeft') ? 1 : 0), y: pressed.throttle };
     const stick = keyStick.x !== 0 || keyStick.y !== 0 ? keyStick : touchStick;
     const canWalk = settled === 'foot' && !state.revealing && !state.panelOpen && state.view === '3d';
-    const [vx, vz] = canWalk ? walkVelocity(stick, pressed.boost || touchInput.boost) : [0, 0];
-    fall.current = controller.computedGrounded() ? 0 : fall.current + GRAVITY * dt;
-    controller.computeColliderMovement(c, { x: vx * dt, y: -fall.current * dt - 0.02, z: vz * dt }, rapier.QueryFilterFlags.EXCLUDE_SENSORS);
-    const move = controller.computedMovement();
+    let [vx, vz] = canWalk ? walkVelocity(stick, pressed.boost || touchInput.boost) : [0, 0];
     const p = b.translation();
+    // The pond stops the walker: a step onto water is dropped, axis by axis so the walker slides along the shore.
+    if (!stepAllowed([p.x, p.z], [p.x + vx * dt, p.z + vz * dt])) {
+      if (stepAllowed([p.x, p.z], [p.x + vx * dt, p.z])) vz = 0;
+      else if (stepAllowed([p.x, p.z], [p.x, p.z + vz * dt])) vx = 0;
+      else vx = vz = 0;
+    }
+    fall.current = controller.computedGrounded() ? 0 : fall.current + GRAVITY * dt;
+    controller.computeColliderMovement(c, { x: vx * dt, y: -fall.current * dt - 0.02, z: vz * dt }, rapier.QueryFilterFlags.EXCLUDE_SENSORS, WALKER_QUERY_GROUPS);
+    const move = controller.computedMovement();
+    // Walking into a football kicks it (cones, crates and the rest just block the way).
+    for (let i = 0; i < controller.numComputedCollisions(); i++) {
+      const hit = controller.computedCollision(i)?.collider?.parent();
+      if (!hit || typeof (hit.userData as { football?: number } | undefined)?.football !== 'number') continue;
+      const [ix, iy, iz] = kickImpulse([vx, vz], hit.mass());
+      hit.applyImpulse({ x: ix, y: iy, z: iz }, true);
+    }
     b.setNextKinematicTranslation({ x: p.x + move.x, y: p.y + move.y, z: p.z + move.z });
     if (vx !== 0 || vz !== 0) {
       const target = Math.atan2(-vx, -vz);
@@ -187,7 +202,7 @@ export function Walker() {
 
   return (
     <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[start.x, 0.15 + WALK.halfHeight + WALK.radius, start.z]} rotation={[0, start.heading, 0]}>
-      <CapsuleCollider ref={collider} args={[WALK.halfHeight, WALK.radius]} />
+      <CapsuleCollider ref={collider} args={[WALK.halfHeight, WALK.radius]} collisionGroups={WALKER_GROUPS} />
       {/* A placeholder figure until the character model lands (U3). */}
       <group ref={figure}>
         <mesh castShadow position={[0, 0, 0]}>

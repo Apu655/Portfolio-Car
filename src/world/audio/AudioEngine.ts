@@ -4,6 +4,7 @@
 // and continuous sounds read the shared telemetry each frame.
 import { BILLBOARD } from '../district/layout';
 import { on, telemetry, type PropMaterial, type Vec3 } from '../events';
+import { usePlayer, type PlayerMode } from '../player';
 import { billboardState, lightingState } from '../lighting/state';
 import { AmbienceBed } from './ambienceBed';
 import { EngineSynth } from './engineSynth';
@@ -29,6 +30,11 @@ const HALF_DISTANCE = 14;
 /** What knocking a lamp or tree over sounds like: a metal clang or a wood crack, louder for a harder hit. */
 export function knockVoice(kind: 'lamp' | 'tree', intensity: number): { material: PropMaterial; level: number } {
   return { material: kind === 'lamp' ? 'metal' : 'wood', level: 0.5 + intensity * 0.5 };
+}
+
+/** The car bus level: the engine and tyres fade almost away while the visitor is on foot. */
+export function carBusLevel(mode: PlayerMode): number {
+  return mode === 'foot' || mode === 'entering' ? 0.08 : 0.55;
 }
 
 /** The nitro hiss level while the boost fires: a steady roar that opens up a little with speed. */
@@ -153,7 +159,7 @@ export class AudioEngine {
       return g;
     };
     // A calmer mix: the car and effects sit under the ambience and music rather than over them.
-    this.car = bus(0.55);
+    this.car = bus(carBusLevel(usePlayer.getState().mode));
     this.effects = bus(0.6);
     this.ambience = bus(0.55);
     this.musicBus = bus(0);
@@ -223,6 +229,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx || ctx.state !== 'running') return;
     this.engine?.update(telemetry);
+    this.car?.gain.setTargetAtTime(carBusLevel(usePlayer.getState().mode), ctx.currentTime, 0.4);
     this.bed?.update(lightingState.hours);
     this.music?.update(lightingState.night);
     if (this.wade) {
