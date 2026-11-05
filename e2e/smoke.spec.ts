@@ -24,7 +24,7 @@ async function startDriving(page: Page, path = '/?e2e#/3d') {
   await expect(page.locator('canvas')).toBeVisible();
   await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
   await page.keyboard.press('KeyQ'); // any key skips the reveal
-  await page.getByRole('button', { name: 'Start driving' }).click();
+  await page.getByRole('button', { name: 'Start exploring' }).click();
   // The visitor starts on foot beside the car; F gets in.
   await expect.poll(() => page.evaluate(() => window.__district!.mode())).toBe('foot');
   await page.keyboard.press('KeyF');
@@ -344,7 +344,7 @@ test('on foot, a lamp post stops the walker and stays standing, and E opens the 
   test.skip(!(await hasWebGL(page)), 'This headless browser has no WebGL.');
   await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
   await page.keyboard.press('KeyQ');
-  await page.getByRole('button', { name: 'Start driving' }).click();
+  await page.getByRole('button', { name: 'Start exploring' }).click();
   expect(await page.evaluate(() => window.__district!.mode())).toBe('foot');
 
   const lamp = (await page.evaluate(() => window.__district!.breakables())).find((b) => b.kind === 'lamp' && Math.hypot(b.x + 20, b.z - 61.2) < 0.1)!;
@@ -371,6 +371,51 @@ test('on foot, a lamp post stops the walker and stays standing, and E opens the 
   await expect(page.locator('.interact-prompt')).toContainText('Career Tower');
   await page.keyboard.press('KeyE');
   await expect(page.getByRole('dialog', { name: 'Software Engineer – AI' })).toBeVisible();
+  expect(errors.map((e) => e.text())).toEqual([]);
+});
+
+test('starts on foot beside the car, gets in and drives, gets out, and fast travels on foot (AE1, AE2)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/?e2e#/3d');
+  test.skip(!(await hasWebGL(page)), 'This headless browser has no WebGL.');
+  await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 30_000 });
+  await page.keyboard.press('KeyQ');
+  await page.getByRole('button', { name: 'Start exploring' }).click();
+  const hooks = () => page.evaluate(() => ({ mode: window.__district!.mode(), player: window.__district!.player().position, car: window.__district!.telemetry.position }));
+
+  // AE1: on foot beside the car, with the F prompt; F gets in, and W drives off.
+  let now = await hooks();
+  expect(now.mode).toBe('foot');
+  expect(Math.hypot(now.player[0] - now.car[0], now.player[2] - now.car[2])).toBeLessThan(3);
+  await expect(page.locator('.interact-prompt')).toContainText('to get in the car');
+  await page.keyboard.press('KeyF');
+  await expect.poll(async () => (await hooks()).mode).toBe('driving');
+  const parked = (await hooks()).car;
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(1500);
+  await page.keyboard.up('KeyW');
+  now = await hooks();
+  expect(Math.hypot(now.car[0] - parked[0], now.car[2] - parked[2])).toBeGreaterThan(3);
+
+  // AE2: F brakes, and the character steps out beside the car.
+  await page.keyboard.press('KeyF');
+  await expect.poll(async () => (await hooks()).mode, { timeout: 10_000 }).toBe('foot');
+  now = await hooks();
+  expect(Math.hypot(now.player[0] - now.car[0], now.player[2] - now.car[2])).toBeLessThan(4);
+  const carLeft = now.car;
+  const walkerLeft = now.player;
+
+  // Fast travel on foot moves the character; the car stays where it was left.
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('navigation', { name: 'Fast travel' }).getByRole('button', { name: 'Research Road' }).click();
+  await expect(page.getByRole('dialog', { name: 'Research & publications' })).toBeVisible();
+  await expect.poll(async () => {
+    const p = (await hooks()).player;
+    return Math.hypot(p[0] - walkerLeft[0], p[2] - walkerLeft[2]);
+  }).toBeGreaterThan(20);
+  now = await hooks();
+  expect(now.mode).toBe('foot');
+  expect(Math.hypot(now.car[0] - carLeft[0], now.car[2] - carLeft[2])).toBeLessThan(0.5);
   expect(errors.map((e) => e.text())).toEqual([]);
 });
 

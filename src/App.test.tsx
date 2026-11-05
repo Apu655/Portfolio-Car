@@ -42,7 +42,7 @@ describe('landing', () => {
     start();
     expect(await screen.findByTestId('world-3d')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Apu Islam' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start driving' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start exploring' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Résumé' })).toHaveAttribute('href', '/resume.pdf');
     expect(screen.getByRole('link', { name: 'Résumé' })).toHaveAttribute('download');
     expect(window.location.hash).toBe('#/3d');
@@ -50,8 +50,8 @@ describe('landing', () => {
 
   it('remembers that the welcome card was dismissed', async () => {
     const user = start();
-    await user.click(screen.getByRole('button', { name: 'Start driving' }));
-    expect(screen.queryByRole('button', { name: 'Start driving' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Start exploring' }));
+    expect(screen.queryByRole('button', { name: 'Start exploring' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Controls' })).toBeInTheDocument();
     expect(window.localStorage.getItem('portfolio.welcome.dismissed')).toBe('1');
   });
@@ -294,10 +294,10 @@ describe('heads-up display', () => {
   it('hides the welcome card during the opening reveal and shows how to skip it', () => {
     start();
     act(() => usePortfolio.getState().setRevealing(true));
-    expect(screen.queryByRole('button', { name: 'Start driving' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start exploring' })).not.toBeInTheDocument();
     expect(screen.getByText('Press any key or tap to skip')).toBeInTheDocument();
     act(() => usePortfolio.getState().setRevealing(false));
-    expect(screen.getByRole('button', { name: 'Start driving' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start exploring' })).toBeInTheDocument();
   });
 });
 
@@ -347,7 +347,7 @@ describe('controls card (fixed camera)', () => {
     expect(screen.getByText('Zoom in and out')).toBeInTheDocument();
   });
 
-  it('tells touch visitors to pinch to zoom and that the joystick drives where they push', () => {
+  it('tells touch visitors to pinch to zoom and that the joystick walks or drives where they push', () => {
     const original = window.matchMedia;
     window.matchMedia = ((query: string) => ({
       matches: query === '(pointer: coarse)',
@@ -358,7 +358,7 @@ describe('controls card (fixed camera)', () => {
     try {
       start();
       expect(screen.getByText('Pinch')).toBeInTheDocument();
-      expect(screen.getByText('Push toward where you want to drive')).toBeInTheDocument();
+      expect(screen.getByText('Push toward where you want to walk or drive')).toBeInTheDocument();
     } finally {
       window.matchMedia = original;
     }

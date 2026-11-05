@@ -533,6 +533,19 @@ button.primary:hover:not(:disabled) {
   opacity: 0.45;
 }
 
+/* Get in / Get out: above the Run / Boost button. */
+.car-button {
+  position: absolute;
+  right: calc(1.5rem + 84px + 0.75rem);
+  bottom: calc(2rem + 72px + 0.75rem);
+  min-width: 84px;
+  min-height: 44px;
+  justify-content: center;
+  font-size: 0.85rem;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .recover-button {
   position: absolute;
   right: 1.75rem;

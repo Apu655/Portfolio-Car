@@ -1,25 +1,42 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { touchActions, touchInput, touchStick } from '../world/drive/input';
-import { telemetry } from '../world/events';
+import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { touchActions, touchInput, touchStick } from "../world/drive/input";
+import { telemetry } from "../world/events";
+import { usePlayer } from "../world/player";
 
 /** True on phones and tablets (a coarse pointer and no hover). */
 export function useCoarsePointer(): boolean {
-  const query = '(pointer: coarse)';
-  const [coarse, setCoarse] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
+  const query = "(pointer: coarse)";
+  const [coarse, setCoarse] = useState(
+    () =>
+      typeof window.matchMedia === "function" &&
+      window.matchMedia(query).matches,
+  );
   useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
+    if (typeof window.matchMedia !== "function") return;
     const list = window.matchMedia(query);
     const onChange = () => setCoarse(list.matches);
-    list.addEventListener('change', onChange);
-    return () => list.removeEventListener('change', onChange);
+    list.addEventListener("change", onChange);
+    return () => list.removeEventListener("change", onChange);
   }, []);
   return coarse;
 }
 
 const RADIUS = 52;
 
-/** On-screen joystick (drive toward where you push) plus handbrake, boost, and recover buttons. */
+/**
+ * On-screen joystick (walk or drive toward where you push) plus the car buttons: Get in beside the car, and while
+ * driving Get out, Brake, Boost and Recover. On foot the Boost button is Run.
+ */
 export function TouchControls() {
+  const mode = usePlayer((s) => s.mode);
+  const nearCar = usePlayer((s) => s.nearCar);
+  const onFoot = mode === "foot" || mode === "entering";
+  const carButton =
+    mode === "foot" && nearCar
+      ? "Get in"
+      : mode === "driving"
+        ? "Get out"
+        : null;
   const base = useRef<HTMLDivElement>(null);
   const pointer = useRef<number | null>(null);
   const [knob, setKnob] = useState<[number, number]>([0, 0]);
@@ -29,7 +46,7 @@ export function TouchControls() {
   useEffect(() => {
     let frame = 0;
     const tick = () => {
-      boost.current?.classList.toggle('is-locked', telemetry.boostLocked);
+      boost.current?.classList.toggle("is-locked", telemetry.boostLocked);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -83,18 +100,32 @@ export function TouchControls() {
         onPointerUp={release}
         onPointerCancel={release}
       >
-        <div className="joystick__knob" style={{ transform: `translate(${knob[0]}px, ${knob[1]}px)` }} />
+        <div
+          className="joystick__knob"
+          style={{ transform: `translate(${knob[0]}px, ${knob[1]}px)` }}
+        />
       </div>
-      <button
-        type="button"
-        className="brake-button"
-        onPointerDown={() => (touchInput.handbrake = true)}
-        onPointerUp={() => (touchInput.handbrake = false)}
-        onPointerCancel={() => (touchInput.handbrake = false)}
-        onPointerLeave={() => (touchInput.handbrake = false)}
-      >
-        Brake
-      </button>
+      {carButton && (
+        <button
+          type="button"
+          className="car-button"
+          onClick={() => (touchActions.car = true)}
+        >
+          {carButton}
+        </button>
+      )}
+      {!onFoot && (
+        <button
+          type="button"
+          className="brake-button"
+          onPointerDown={() => (touchInput.handbrake = true)}
+          onPointerUp={() => (touchInput.handbrake = false)}
+          onPointerCancel={() => (touchInput.handbrake = false)}
+          onPointerLeave={() => (touchInput.handbrake = false)}
+        >
+          Brake
+        </button>
+      )}
       <button
         ref={boost}
         type="button"
@@ -104,11 +135,17 @@ export function TouchControls() {
         onPointerCancel={() => (touchInput.boost = false)}
         onPointerLeave={() => (touchInput.boost = false)}
       >
-        Boost
+        {onFoot ? "Run" : "Boost"}
       </button>
-      <button type="button" className="recover-button" onClick={() => (touchActions.recover = true)}>
-        Recover
-      </button>
+      {!onFoot && (
+        <button
+          type="button"
+          className="recover-button"
+          onClick={() => (touchActions.recover = true)}
+        >
+          Recover
+        </button>
+      )}
     </div>
   );
 }

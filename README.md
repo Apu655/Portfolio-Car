@@ -69,11 +69,14 @@ and colliders all come from it, so Blender and the runtime always agree.
 
 | Input | Action |
 |---|---|
+| `W` `A` `S` `D` / arrows, on foot | Walk the way you press, relative to the screen |
+| `Shift`, on foot | Run |
+| `F` | Get in the car within reach of its driver's door; while driving, stop and step out beside it |
 | `W` / `↑` | Accelerate |
 | `S` / `↓` | Brake, then reverse |
 | `A` `D` / `←` `→` | Steer |
 | `Space` | Handbrake |
-| `Shift` | Nitro boost while driving forward: about 3 s per tank, refilling once you let go (the bar on the map shows it) |
+| `Shift`, driving | Nitro boost while driving forward: about 3 s per tank, refilling once you let go (the bar on the map shows it) |
 | `R` | Recover: put the car back on its wheels (it also happens on its own after a flip) |
 | `E` | Open the stop whose glowing zone you're in |
 | `Esc` | Close the menu, then the panel (pressing `W` again also closes the panel and drives off) |
@@ -82,14 +85,23 @@ and colliders all come from it, so Blender and the runtime always agree.
 | Click or tap the Career Tower, robot, hall, campus, or kiosk | Fast travel there and open its panel |
 | Click or tap a roadside billboard | Open that item where you are |
 | Scroll · pinch | Zoom in and out (the camera angle itself is fixed) |
-| Touch | Push the joystick toward where you want to drive; Brake, Boost, Recover, and an "Open" button inside a zone |
+| Touch | Push the joystick toward where you want to walk or drive; Get in beside the car and Get out while driving; Run on foot, Brake, Boost and Recover in the car; and an "Open" button inside a zone |
 | Any key or tap during the opening fly-over | Skip it |
+
+**On foot.** Visitors start on foot beside the parked car, as a chibi toon character. Buildings, posts, trees and
+the pond stop them (only the car knocks lamps and trees over); they can kick the footballs and open every stop with
+`E`. Fast travel on foot moves the character and leaves the car where it was parked.
+
+**Locals.** Two original companions roam the city: Fizz, a round yellow spark critter in the park, and Cogs, a
+gadget cat around the prop plaza and tower forecourt. They always get out of the car's way, and when you come close
+Fizz throws sparks and Cogs shows off a gadget.
 
 **Day dial** (top bar): pause or resume the day cycle and drag to any time. On phones it collapses to a time chip.
 
 **Sound** (top bar): a mute toggle, a volume slider, and a Background music switch, all remembered. Nothing
-plays until your first click, tap, or key press, as browsers require. The music is a soft ambient score generated
-in the browser, so it is copyright-free and adds nothing to the download.
+plays until your first click, tap, or key press, as browsers require. The music is an original, relaxed chiptune route
+theme generated in the browser (square lead, triangle bass, pulse arpeggio, softer at night), so it is
+copyright-free and adds nothing to the download.
 
 **Map** (bottom-right corner): click a letter to travel there; press `N` for a larger map with a legend.
 
@@ -109,8 +121,8 @@ src/
   world/events.ts        event bus and telemetry: physics publishes, audio, effects, and HUD listen
   ui/                    HUD, day dial, sound controls, welcome card, E prompt, menu, info panel, touch controls
   basic/BasicSite.tsx    the conventional quick view
-assets/blender/          Python model scripts (car, tower, district, gates and kiosk, landmarks, billboard, props)
-e2e/                     Playwright smoke tests (drive to the tower, pond, cones, fast travel, fps report)
+assets/blender/          Python model scripts (car, tower, district, gates and kiosk, landmarks, billboard, props, character, companions)
+e2e/                     Playwright smoke tests (on foot and in the car, tower, pond, cones, fast travel, fps report)
 ```
 
 - **Every place has a URL**, and Back/Forward work across views.

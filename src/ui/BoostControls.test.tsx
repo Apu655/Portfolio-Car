@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { touchInput } from '../world/drive/input';
+import { touchActions, touchInput } from '../world/drive/input';
 import { telemetry } from '../world/events';
+import { usePlayer } from '../world/player';
 import { BoostGauge } from './BoostGauge';
 import { TouchControls } from './TouchControls';
 
 describe('touch boost button', () => {
+  beforeEach(() => act(() => usePlayer.setState({ mode: 'driving', nearCar: false })));
   afterEach(() => {
     touchInput.boost = false;
   });
@@ -26,6 +28,43 @@ describe('touch boost button', () => {
     expect(touchInput.boost).toBe(false);
     fireEvent.pointerDown(button);
     unmount();
+    expect(touchInput.boost).toBe(false);
+  });
+});
+
+describe('touch controls on foot', () => {
+  afterEach(() => {
+    touchInput.boost = false;
+    touchActions.car = false;
+    act(() => usePlayer.setState({ mode: 'foot', nearCar: false }));
+  });
+
+  it('shows Get in only within reach of the car, and Get out only while driving', () => {
+    act(() => usePlayer.setState({ mode: 'foot', nearCar: false }));
+    render(<TouchControls />);
+    expect(screen.queryByRole('button', { name: 'Get in' })).toBeNull();
+    act(() => usePlayer.setState({ nearCar: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get in' }));
+    expect(touchActions.car).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Get out' })).toBeNull();
+    act(() => usePlayer.setState({ mode: 'driving', nearCar: false }));
+    expect(screen.queryByRole('button', { name: 'Get in' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Get out' })).toBeTruthy();
+    // Mid-stop, neither: the car is already letting them out.
+    act(() => usePlayer.setState({ mode: 'stopping' }));
+    expect(screen.queryByRole('button', { name: /Get (in|out)/ })).toBeNull();
+  });
+
+  it('on foot the Boost button is Run, and the car buttons are hidden', () => {
+    act(() => usePlayer.setState({ mode: 'foot', nearCar: false }));
+    render(<TouchControls />);
+    expect(screen.queryByRole('button', { name: 'Boost' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Brake' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Recover' })).toBeNull();
+    const run = screen.getByRole('button', { name: 'Run' });
+    fireEvent.pointerDown(run);
+    expect(touchInput.boost).toBe(true);
+    fireEvent.pointerUp(run);
     expect(touchInput.boost).toBe(false);
   });
 });

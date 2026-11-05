@@ -2,7 +2,8 @@
 // real GPU, at 1440×900 with a device scale factor of 2 (retina). It holds the nitro boost on the straights, and
 // three times aims the car at the nearest lamp post or tree so thrown copies are in flight while frames are sampled
 // (R17 of the knock-overs and boost plan). Reports the average and 5th-percentile fps and whether the quality tier
-// dropped. It reports; it never fails the build, so the exit code is always 0.
+// dropped. It opens with a short walk on foot before getting in. It reports; it never fails the build, so the exit
+// code is always 0.
 //
 // Usage: `npm run build`, then `node scripts/measure-fps.mjs`. The script serves `dist/` itself with
 // `vite preview --port 4175 --strictPort` (and stops it afterwards), or reuses a preview already on that port.
@@ -12,7 +13,7 @@ import { chromium } from '@playwright/test';
 
 const PORT = 4175;
 const ORIGIN = `http://localhost:${PORT}`;
-const SETTLE_MS = 3000; // after "Start driving", before sampling: first-frame shader compiles and the camera settle
+const SETTLE_MS = 3000; // after "Start exploring", before sampling: first-frame shader compiles and the camera settle
 const DRIVE_MS = 60_000;
 const TICK_MS = 50;
 /** Seconds into the drive when the car is aimed at the nearest standing lamp post or tree. */
@@ -101,7 +102,7 @@ async function main() {
     await page.goto(`${ORIGIN}/?e2e#/3d`);
     await page.waitForFunction(() => (window.__district?.telemetry.wheelsOnGround ?? 0) > 0, null, { timeout: 60_000 });
     await page.keyboard.press('KeyQ'); // any key skips the opening reveal
-    await page.getByRole('button', { name: 'Start driving' }).click();
+    await page.getByRole('button', { name: 'Start exploring' }).click();
     // The visitor starts on foot beside the car; F gets in.
     await page.keyboard.press('KeyF');
     await page.waitForFunction(() => window.__district.mode() === 'driving', null, { timeout: 10_000 });
@@ -123,6 +124,22 @@ async function main() {
       };
       requestAnimationFrame(loop);
     });
+
+    // A short walk first: out of the car, a few running steps away and back with the close on-foot camera and the
+    // character on screen, then back in.
+    await page.keyboard.press('KeyF');
+    await page.waitForFunction(() => window.__district.mode() === 'foot', null, { timeout: 10_000 });
+    await page.keyboard.down('ShiftLeft');
+    for (const key of ['KeyS', 'KeyW']) {
+      await page.keyboard.down(key);
+      await page.waitForTimeout(1200);
+      await page.keyboard.up(key);
+    }
+    await page.keyboard.up('ShiftLeft');
+    for (let i = 0; i < 6 && (await page.evaluate(() => window.__district.mode())) !== 'driving'; i++) {
+      await page.keyboard.press('KeyF');
+      await page.waitForTimeout(600);
+    }
 
     // Drive: hold W, steer toward a point a little ahead on the road, brake for corners, and put the car back on the
     // road if it gets stuck against something.
